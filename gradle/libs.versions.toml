@@ -1,0 +1,9 @@
+[versions]
+agp = "9.1.1"
+karooExt = "1.1.9"
+
+[libraries]
+hammerhead-karoo-ext = { module = "io.hammerhead:karoo-ext", version.ref = "karooExt" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }

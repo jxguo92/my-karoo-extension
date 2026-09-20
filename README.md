@@ -1,74 +1,40 @@
 # My Karoo Extension
 
-面向 Hammerhead Karoo 的自定义扩展项目。项目将先从定制 Data Field 开始，并为后续加入地图层、骑行提醒和设备接入保留清晰的扩展路径。
+面向 Hammerhead Karoo 的自定义扩展项目。当前仓库是一个最小可构建骨架：包含单一 `app` 模块和可被 Karoo 发现的空 Extension service，尚未声明 Data Field。
 
-> 当前状态：项目正在初始化，仓库中暂时只有结构调研与开发约定，尚无可安装 APK。
+Android 的包名不能包含连字符，因此 namespace/applicationId 使用 `com.jxguo92.mykarooextension`；Karoo Extension ID 使用 `my-karoo-extension`。
 
-## 设计原则
+## 环境要求
 
-- 单一 `app` 模块，按功能垂直切片；每个 Data Field 的接入、计算、状态、视图和测试彼此就近。
-- `KarooExtension` 只负责注册与生命周期编排，业务计算保持为可独立测试的纯 Kotlin。
-- 实时数据与运行时状态使用 Coroutines、Flow 和不可变状态；需要跨重启保留的设置使用 DataStore。
-- 设置页使用 Jetpack Compose；只有图形 Data Field 才引入 Glance/RemoteViews。
-- 初期使用构造函数注入和小型 `AppContainer`，不预先引入大型 DI 框架或多模块结构。
-- `extension_info.xml` 与 Kotlin registry 通过契约测试保持同步，减少字段在设备上无法发现的配置错误。
+- Android Studio 或 JDK 17+
+- Android SDK Platform 37
+- GitHub Packages 只读凭据（用于下载 `io.hammerhead:karoo-ext`）
 
-完整的调研依据与结构决策见 [Karoo Extension 项目结构调研](docs/research/karoo-extension-project-structure.md)。Agent 的目录约定、边界和完成标准见 [AGENTS.md](AGENTS.md)。
+在用户级 `~/.gradle/gradle.properties` 中配置凭据，不要提交到仓库：
 
-## 计划中的技术栈
-
-- Kotlin
-- Hammerhead [`karoo-ext`](https://github.com/hammerheadnav/karoo-ext) SDK
-- Kotlin Coroutines / Flow
-- Jetpack Compose（应用与设置界面）
-- Jetpack DataStore（持久化设置）
-- Jetpack Glance（仅图形 Data Field）
-- Gradle Kotlin DSL + Version Catalog
-
-## 开发
-
-项目初始化将以官方 [`karoo-ext-template`](https://github.com/hammerheadnav/karoo-ext-template) 为骨架，使用正式 namespace/applicationId 替换文档中的 `com.example.mykaroo`，并保留单一 `app` 模块。
-
-完成 Gradle 初始化后，Windows 下的常用验证命令为：
-
-```powershell
-# 快速运行 JVM 单元测试
-.\gradlew.bat testDebugUnitTest
-
-# 提交前检查
-.\gradlew.bat lint test assembleDebug
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_GITHUB_TOKEN
 ```
 
-这些命令在 Gradle wrapper 和 `app` 模块加入仓库后才可运行。依赖 GitHub Packages 的本地认证信息应放在 Gradle 属性或环境变量中，具体属性名以采用的 SDK 版本和官方说明为准；不要把 token、keystore 或 `local.properties` 提交到仓库。
+Token 需要 `read:packages` 权限。CI 也可使用 `GITHUB_ACTOR`/`GITHUB_TOKEN`，或 `USERNAME`/`TOKEN` 环境变量。
 
-新增 Data Field 时，需要同时完成：
+## 构建
 
-1. 在独立的 `feature/datafield/<field_name>/` 切片中实现字段和纯计算逻辑。
-2. 在 `extension_info.xml` 声明字段，并在 `DataFieldRegistry` 注册相同的 `typeId`。
-3. 为计算边界、Flow 状态与 XML/registry 一致性添加测试。
-4. 在 `docs/data-fields.md` 记录数据来源、单位、不可用状态和预览行为。
-5. 若为图形字段，提供固定、可复现的预览，并在 Karoo 真机检查尺寸与交互。
-
-## 构建与安装
-
-源码骨架加入后，可通过以下命令生成 debug APK：
+Windows：
 
 ```powershell
 .\gradlew.bat assembleDebug
 ```
 
-APK 通常位于 `app/build/outputs/apk/debug/`。安装与设备调试步骤将在首个可运行版本完成后补充；当前仓库没有可供安装的构建产物。
+完整验证：
 
-## 测试策略
+```powershell
+.\gradlew.bat lint test assembleDebug
+```
 
-- Calculator/Formatter 表驱动测试：正常值、缺失值、边界、单位制和非法输入。
-- Data Field 契约测试：XML 与 Kotlin `typeId` 集合相等且无重复。
-- Flow/state 测试：输入顺序、断线、`NotAvailable` 和取消行为。
-- DataStore 测试：默认值、旧数据兼容与迁移。
-- 图形字段逻辑测试与 Karoo 真机 smoke test。
+Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。
 
-CI 计划在 push 和 pull request 时执行 lint、单元测试和 debug build；tag 发布流程负责签名 release APK，并从同一构建配置生成扩展 `manifest.json`，避免手工同步包名、版本和下载地址。
+## 下一步
 
-## 发布计划
-
-首个发布版本将通过 Git tag 触发自动构建，并发布签名 APK、`manifest.json`、图标和截图。签名文件与密码只存放在 CI secrets 中。正式发布流程建立前，不应手工维护多个相互独立的版本号或下载 URL。
+新增 Data Field 时，按 [AGENTS.md](AGENTS.md) 中的垂直切片约定实现，并同步 `extension_info.xml`、Kotlin registry、契约测试和 `docs/data-fields.md`。完整结构决策见 [Karoo Extension 项目结构调研](docs/research/karoo-extension-project-structure.md)。

@@ -4,6 +4,7 @@
 
 # Gradle and Kotlin
 .gradle/
+.gradle-home/
 .kotlin/
 **/build/
 

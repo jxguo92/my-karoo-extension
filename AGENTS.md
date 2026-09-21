@@ -6,6 +6,8 @@
 
 这是一个 Hammerhead Karoo 扩展。第一阶段交付定制 Data Field，后续可按真实需求增加地图层、提醒和设备接入等能力。
 
+官方 SDK 仓库：[hammerheadnav/karoo-ext](https://github.com/hammerheadnav/karoo-ext)。
+
 保持单一 `app` 模块，并按功能垂直切片。优先选择可定位、可测试、低认知负担的实现：Kotlin、Coroutines/Flow、Compose 设置页、DataStore，以及仅用于图形 Data Field 的 Glance。
 
 ## 工作顺序

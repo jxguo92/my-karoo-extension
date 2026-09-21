@@ -4,6 +4,8 @@
 
 Android 的包名不能包含连字符，因此 namespace/applicationId 使用 `com.jxguo92.mykarooextension`；Karoo Extension ID 使用 `my-karoo-extension`。
 
+官方 SDK 仓库：[hammerheadnav/karoo-ext](https://github.com/hammerheadnav/karoo-ext)。
+
 ## 环境要求
 
 - Android Studio 或 JDK 17+

@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">My Karoo Extension</string>
     <string name="extension_name">My Karoo Extension</string>
+    <string name="rear_cog_teeth_name">Rear Cog Teeth</string>
+    <string name="rear_cog_teeth_description">Current rear cog tooth count</string>
 </resources>

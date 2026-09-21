@@ -1,6 +1,8 @@
 # My Karoo Extension
 
-面向 Hammerhead Karoo 的自定义扩展项目。当前仓库是一个最小可构建骨架：包含单一 `app` 模块和可被 Karoo 发现的空 Extension service，尚未声明 Data Field。
+面向 Hammerhead Karoo 的自定义扩展项目。当前包含第一个 Data Field：显示当前后飞轮片齿数。
+系统提供实时齿数时直接显示；否则按 SRAM CS-XG-1371-E1 的档位序数推测，并在
+推测值末尾追加 `'`，例如 `21'`。
 
 Android 的包名不能包含连字符，因此 namespace/applicationId 使用 `com.jxguo92.mykarooextension`；Karoo Extension ID 使用 `my-karoo-extension`。
 
@@ -37,6 +39,9 @@ Windows：
 
 Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。
 
-## 下一步
+## Data Field
 
-新增 Data Field 时，按 [AGENTS.md](AGENTS.md) 中的垂直切片约定实现，并同步 `extension_info.xml`、Kotlin registry、契约测试和 `docs/data-fields.md`。完整结构决策见 [Karoo Extension 项目结构调研](docs/research/karoo-extension-project-structure.md)。
+字段契约、映射和真机检查项见 [Data Fields](docs/data-fields.md)。新增 Data Field 时，
+按 [AGENTS.md](AGENTS.md) 中的垂直切片约定实现，并同步 `extension_info.xml`、Kotlin
+registry、契约测试和字段文档。完整结构决策见
+[Karoo Extension 项目结构调研](docs/research/karoo-extension-project-structure.md)。

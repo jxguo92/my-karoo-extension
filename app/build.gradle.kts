@@ -22,4 +22,5 @@ android {
 
 dependencies {
     implementation(libs.hammerhead.karoo.ext)
+    testImplementation(libs.junit)
 }

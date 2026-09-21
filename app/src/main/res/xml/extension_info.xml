@@ -3,4 +3,11 @@
     displayName="@string/extension_name"
     icon="@drawable/ic_extension"
     id="my-karoo-extension"
-    scansDevices="false" />
+    scansDevices="false">
+    <DataType
+        typeId="rear-cog-teeth"
+        description="@string/rear_cog_teeth_description"
+        displayName="@string/rear_cog_teeth_name"
+        graphical="true"
+        icon="@drawable/ic_extension" />
+</ExtensionInfo>

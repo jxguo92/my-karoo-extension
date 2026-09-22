@@ -8,6 +8,8 @@
 
 官方 SDK 仓库：[hammerheadnav/karoo-ext](https://github.com/hammerheadnav/karoo-ext)。
 
+热门Karoo Extension列表: [awesome-karoo](https://github.com/timklge/awesome-karoo)。
+
 保持单一 `app` 模块，并按功能垂直切片。优先选择可定位、可测试、低认知负担的实现：Kotlin、Coroutines/Flow、Compose 设置页、DataStore，以及仅用于图形 Data Field 的 Glance。
 
 ## 工作顺序
@@ -16,7 +18,8 @@
 2. 将业务变更放进对应 `feature/` 切片；将 Karoo/Android 接口适配留在边界层。
 3. 先为纯计算、状态转换和注册契约补测试，再连接 SDK stream 或 UI。
 4. 执行与改动匹配的验证；交付时说明已运行的命令，以及无法完成的真机检查。
-5. 计划模式应自动将计划markdown保存至docs/plans内
+5. 计划模式应自动将计划markdown保存至 docs/plans 内
+6. prototype/demo保存至 demo/ 内
 
 ## 目标目录结构
 

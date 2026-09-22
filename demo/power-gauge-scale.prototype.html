@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>功率指针刻度实验 · PROTOTYPE</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #172820; background: #f5f7f3; }
+    * { box-sizing: border-box; }
+    body { max-width: 1120px; margin: 0 auto; padding: 28px 22px 72px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 10px; font-size: clamp(27px, 4vw, 40px); letter-spacing: -.03em; }
+    h2 { font-size: 19px; margin-bottom: 14px; }
+    h3 { font-size: 16px; margin-bottom: 8px; }
+    p { line-height: 1.55; }
+    .eyebrow { color: #326b52; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .lead { max-width: 760px; color: #4c5d52; }
+    .panel { background: white; border: 1px solid #d9e3da; border-radius: 16px; padding: 22px; margin-top: 20px; box-shadow: 0 3px 13px #17351f08; }
+    .state { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .metric { background: #f5f8f5; border-radius: 12px; padding: 14px; min-height: 94px; }
+    .metric span { display: block; font-size: 13px; color: #5c6c61; }
+    .metric strong { display: block; margin-top: 7px; font-size: 28px; font-variant-numeric: tabular-nums; }
+    .metric small { display: block; color: #5c6c61; margin-top: 5px; }
+    .input-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    input[type="range"] { flex: 1; min-width: 230px; accent-color: #287b55; }
+    input[type="number"] { width: 92px; padding: 9px; border: 1px solid #b6c7ba; border-radius: 8px; font: inherit; }
+    button { background: white; color: #1b5037; border: 1px solid #abc9b4; border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+    button:hover:not(:disabled), button:focus-visible { background: #eaf5ed; }
+    button:disabled { opacity: .45; cursor: default; }
+    .buttons, .tabs, .steps { display: flex; flex-wrap: wrap; gap: 8px; }
+    .buttons { margin-top: 16px; }
+    .tabs { border-bottom: 1px solid #d9e3da; padding-bottom: 10px; margin-bottom: 16px; }
+    .tabs button[aria-selected="true"] { color: white; background: #287b55; border-color: #287b55; }
+    .steps button.current { border-color: #287b55; box-shadow: inset 0 0 0 1px #287b55; }
+    .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .gauge-card { border: 1px solid #dce6dd; border-radius: 12px; padding: 16px 12px 8px; text-align: center; }
+    .gauge-card h3 { margin-bottom: 2px; }
+    .gauge-card p { color: #607064; font-size: 13px; margin-bottom: 0; }
+    svg { width: 100%; display: block; }
+    .gauge-svg { max-width: 340px; margin: 0 auto; }
+    .gauge-number { fill: #173a28; font-size: 27px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .gauge-label { fill: #607064; font-size: 11px; }
+    .mapping { margin-top: 18px; }
+    .mapping svg { max-width: 720px; margin: 0 auto; }
+    .note { font-size: 13px; color: #5c6c61; margin: 10px 0 0; }
+    code, .formula { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .formula { background: #f5f8f5; border-radius: 10px; padding: 14px; line-height: 1.8; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid #e2e9e2; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    th { font-size: 13px; color: #506354; }
+    .caveat { border-left: 3px solid #287b55; padding-left: 13px; color: #4c5d52; }
+    @media (max-width: 800px) { .three { grid-template-columns: 1fr; } }
+    @media (max-width: 690px) { .state { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panel { padding: 17px; } }
+    @media (max-width: 470px) { .state { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">PROTOTYPE · 仅用于讨论，非正式 Data Field</div>
+    <h1>功率指针刻度实验</h1>
+    <p class="lead">要验证的问题：在 0% FTP 对应刻度 0、400% FTP 对应刻度 100 的前提下，能否让常用的 50%–120% FTP 占据 gauge 中央至少一半的行程？拖动功率或按情境步骤，同时看三种映射。</p>
+  </header>
+
+  <section class="panel" aria-labelledby="state-heading">
+    <h2 id="state-heading">当前状态</h2>
+    <div class="state">
+      <div class="metric"><span>输入功率</span><strong id="raw-value">—</strong><small id="input-note"></small></div>
+      <div class="metric"><span>线性指针位置</span><strong id="linear-value">—</strong><small>0–100 刻度</small></div>
+      <div class="metric"><span>聚焦指针位置</span><strong id="focus-value">—</strong><small>0–100 刻度</small></div>
+      <div class="metric"><span>S 曲线指针位置</span><strong id="s-curve-value">—</strong><small>0–100 刻度</small></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="free-heading">
+    <h2 id="free-heading">自由探索</h2>
+    <div class="input-row">
+      <label for="power-input">功率（% FTP）</label>
+      <input id="power-slider" type="range" min="0" max="450" step="1" value="85" aria-label="功率滑块">
+      <input id="power-input" type="number" step="any" value="85" aria-label="输入功率百分比">
+    </div>
+    <div class="buttons" id="presets" aria-label="常见功率">
+      <button type="button" data-power="0">0%</button>
+      <button type="button" data-power="50">50%</button>
+      <button type="button" data-power="85">85%</button>
+      <button type="button" data-power="100">100%</button>
+      <button type="button" data-power="120">120%</button>
+      <button type="button" data-power="200">200%</button>
+      <button type="button" data-power="400">400%</button>
+      <button type="button" data-power="missing">无数据</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="gauges-heading">
+    <h2 id="gauges-heading">同一功率，三种指针</h2>
+    <div class="three">
+      <div class="gauge-card">
+        <h3>线性</h3><p>50%–120% FTP 只占刻度 12.5–30，共 17.5 格</p>
+        <svg class="gauge-svg" id="linear-gauge" viewBox="0 0 320 190" role="img" aria-label="线性功率 gauge"></svg>
+      </div>
+      <div class="gauge-card">
+        <h3>聚焦常用区间</h3><p>50%–120% FTP 占刻度 25–75，共 50 格</p>
+        <svg class="gauge-svg" id="focus-gauge" viewBox="0 0 320 190" role="img" aria-label="聚焦功率 gauge"></svg>
+      </div>
+      <div class="gauge-card">
+        <h3>S 曲线</h3><p>50%–120% FTP 约占刻度 25.2–75.8，共 50.7 格</p>
+        <svg class="gauge-svg" id="s-curve-gauge" viewBox="0 0 320 190" role="img" aria-label="S 曲线功率 gauge"></svg>
+      </div>
+    </div>
+    <div class="mapping">
+      <h3>完整映射曲线</h3>
+      <svg id="mapping-chart" viewBox="0 0 500 255" role="img" aria-label="线性、分段聚焦与 S 曲线算法从 0 到 400% FTP 的映射曲线"></svg>
+      <p class="note">绿色阴影是 50%–120% FTP。图中横轴是实际 % FTP，纵轴是 0–100 指针刻度。</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="guide-heading">
+    <h2 id="guide-heading">按情境检查</h2>
+    <div class="tabs" id="scenario-tabs" role="tablist" aria-label="检查情境"></div>
+    <p id="scenario-description"></p>
+    <div class="steps" id="scenario-steps"></div>
+    <p class="note" id="scenario-progress"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="decision-heading">
+    <h2 id="decision-heading">候选规则与取舍</h2>
+    <div class="formula">线性：L(p) = clamp(p, 0, 400) / 4<br>
+      聚焦：F(p) = p / 2　　　　　　　　（0 ≤ p ≤ 50）<br>
+      　　　　　　　25 + (p − 50) × 5 / 7　 （50 &lt; p ≤ 120）<br>
+      　　　　　　　75 + (p − 120) × 5 / 56（120 &lt; p ≤ 400）<br>
+      S 曲线：H(p) = p^2.5 / (p^2.5 + 78^2.5)<br>
+      　　　　 S(p) = 100 × H(clamp(p, 0, 400)) / H(400)</div>
+    <p class="note">三种规则均先把有效输入限制在 0–400；无数据时不绘制指针。实际 % FTP 数字应原样显示，不能把刻度值当成功率百分比。</p>
+    <table aria-label="关键锚点对照">
+      <thead><tr><th>实际 % FTP</th><th>线性刻度</th><th>聚焦刻度</th><th>S 曲线刻度</th></tr></thead>
+      <tbody id="anchor-rows"></tbody>
+    </table>
+    <p class="caveat">聚焦规则在 50% 和 120% FTP 处连续，但斜率改变。S 曲线没有这两个折点，指针变化更平滑；它在 200% FTP 时已到约 92.9 格，之后的高功率变化更难从指针上分辨。</p>
+  </section>
+
+  <script>
+    // 可移植的纯计算模块；不依赖页面状态或 DOM。
+    const PowerScale = (() => {
+      const clamp = (ftp) => ftp == null || !Number.isFinite(ftp)
+        ? null : Math.max(0, Math.min(400, ftp));
+
+      const linear = (ftp) => {
+        const p = clamp(ftp);
+        return p === null ? null : p / 4;
+      };
+
+      const focused = (ftp) => {
+        const p = clamp(ftp);
+        if (p === null) return null;
+        if (p <= 50) return p / 2;
+        if (p <= 120) return 25 + (p - 50) * 5 / 7;
+        return 75 + (p - 120) * 5 / 56;
+      };
+
+      const hill = (p) => p ** 2.5 / (p ** 2.5 + 78 ** 2.5);
+      const sCurve = (ftp) => {
+        const p = clamp(ftp);
+        return p === null ? null : 100 * hill(p) / hill(400);
+      };
+
+      return { clamp, linear, focused, sCurve };
+    })();
+  </script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const scenarios = [
+      { name: "巡航区间", description: "从区间下沿走到上沿，看 50%–120% FTP 是否横跨指针中央至少 50 格。", steps: [
+        { label: "1 · 到 50%", value: 50 }, { label: "2 · 到 85%", value: 85 }, { label: "3 · 到 120%", value: 120 }
+      ] },
+      { name: "冲刺与上限", description: "走出常用区间，比较聚焦与 S 曲线在 120% 之后的刻度压缩。", steps: [
+        { label: "1 · 到 120%", value: 120 }, { label: "2 · 到 200%", value: 200 }, { label: "3 · 到 400%", value: 400 }
+      ] },
+      { name: "边界和断线", description: "检查低于零、超过上限、无数据时的定义；无数据不应伪装成零功率。", steps: [
+        { label: "1 · 输入 −20%", value: -20 }, { label: "2 · 输入 0%", value: 0 },
+        { label: "3 · 输入 450%", value: 450 }, { label: "4 · 模拟无数据", value: null }
+      ] }
+    ];
+    let power = 85;
+    let scenarioIndex = null;
+    let nextStep = 0;
+
+    const fmt = (number) => number === null ? "—" : number.toFixed(1);
+    const point = (position, radius = 110) => {
+      const angle = Math.PI * (1 - position / 100);
+      return [160 + radius * Math.cos(angle), 150 - radius * Math.sin(angle)];
+    };
+    const arc = (start, end, radius = 110) => {
+      const positions = [start];
+      for (let p = Math.ceil(start + 1); p < end; p += 1) positions.push(p);
+      positions.push(end);
+      return positions.map((p, i) => `${i ? "L" : "M"}${point(p, radius).map(n => n.toFixed(2)).join(" ")}`).join(" ");
+    };
+    const line = (a, b, stroke, width) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round"/>`;
+
+    function drawGauge(id, position, mapper, accent = "#3b9668") {
+      const ticks = [0, 50, 120, 400].map(ftp => {
+        const place = mapper(ftp);
+        const label = point(place, 138);
+        return line(point(place, 101), point(place, 119), "#668272", 1.5) +
+          `<text x="${label[0]}" y="${label[1] + 4}" text-anchor="middle" class="gauge-label">${ftp}</text>`;
+      }).join("");
+      const needle = position === null ? "" : line([160, 150], point(position, 88), "#173a28", 3.5) +
+        `<circle cx="160" cy="150" r="6" fill="#173a28"/>`;
+      $(id).innerHTML = `
+        <path d="${arc(0, 100)}" fill="none" stroke="#dce6dd" stroke-width="14" stroke-linecap="round"/>
+        <path d="${arc(mapper(50), mapper(120))}" fill="none" stroke="${accent}" stroke-width="14" stroke-linecap="butt"/>
+        ${ticks}${needle}
+        <text x="160" y="126" text-anchor="middle" class="gauge-number">${position === null ? "—" : fmt(position)}</text>
+        <text x="160" y="177" text-anchor="middle" class="gauge-label">指针刻度 / 100</text>`;
+    }
+
+    function drawChart(linearPosition, focusPosition, sCurvePosition) {
+      const x = p => 42 + p * 1.04;
+      const y = position => 212 - position * 1.75;
+      const focusPoints = [0, 50, 120, 400].map(p => `${x(p)},${y(PowerScale.focused(p))}`).join(" ");
+      const sCurvePoints = Array.from({ length: 101 }, (_, index) => {
+        const p = index * 4;
+        return `${x(p)},${y(PowerScale.sCurve(p))}`;
+      }).join(" ");
+      const marks = power === null ? "" : `
+        <circle cx="${x(PowerScale.clamp(power))}" cy="${y(linearPosition)}" r="5" fill="#84918b"/>
+        <circle cx="${x(PowerScale.clamp(power))}" cy="${y(focusPosition)}" r="6" fill="#287b55"/>
+        <circle cx="${x(PowerScale.clamp(power))}" cy="${y(sCurvePosition)}" r="5" fill="#a45d9f"/>`;
+      $("mapping-chart").innerHTML = `
+        <rect x="${x(50)}" y="37" width="${x(120) - x(50)}" height="175" fill="#e7f4e9"/>
+        ${line([42, 37], [42, 212], "#9bad9f", 1)}${line([42, 212], [458, 212], "#9bad9f", 1)}
+        <polyline points="42,212 458,37" fill="none" stroke="#84918b" stroke-width="2.5" stroke-dasharray="7 5"/>
+        <polyline points="${focusPoints}" fill="none" stroke="#287b55" stroke-width="3"/>
+        <polyline points="${sCurvePoints}" fill="none" stroke="#a45d9f" stroke-width="2.5"/>
+        ${marks}
+        <text x="35" y="216" text-anchor="end" font-size="12" fill="#596e60">0</text>
+        <text x="35" y="41" text-anchor="end" font-size="12" fill="#596e60">100</text>
+        ${[0, 50, 120, 400].map(p => `<text x="${x(p)}" y="231" text-anchor="middle" font-size="12" fill="#596e60">${p}</text>`).join("")}
+        <text x="42" y="249" font-size="12" fill="#596e60">实际 % FTP →</text>
+        <line x1="223" y1="18" x2="242" y2="18" stroke="#84918b" stroke-width="2.5" stroke-dasharray="7 5"/>
+        <text x="247" y="22" font-size="12" fill="#596e60">线性</text>
+        <line x1="299" y1="18" x2="318" y2="18" stroke="#287b55" stroke-width="3"/>
+        <text x="323" y="22" font-size="12" fill="#287b55">聚焦</text>
+        <line x1="375" y1="18" x2="394" y2="18" stroke="#a45d9f" stroke-width="2.5"/>
+        <text x="399" y="22" font-size="12" fill="#8a4484">S 曲线</text>`;
+    }
+
+    function renderScenario() {
+      $("scenario-tabs").innerHTML = scenarios.map((scenario, index) =>
+        `<button type="button" role="tab" aria-selected="${index === scenarioIndex}" data-scenario="${index}">${scenario.name}</button>`
+      ).join("");
+      if (scenarioIndex === null) {
+        $("scenario-description").textContent = "选择一个情境，从 0% FTP 开始逐步检查。";
+        $("scenario-steps").innerHTML = "";
+        $("scenario-progress").textContent = "当前是自由探索。";
+        return;
+      }
+      const scenario = scenarios[scenarioIndex];
+      $("scenario-description").textContent = scenario.description;
+      $("scenario-steps").innerHTML = scenario.steps.map((step, index) =>
+        `<button type="button" data-step="${index}" ${index === nextStep ? 'class="current"' : ""} ${index !== nextStep ? "disabled" : ""}>${step.label}</button>`
+      ).join("") + `<button type="button" data-restart="true">从头开始</button>`;
+      $("scenario-progress").textContent = nextStep === scenario.steps.length
+        ? "本情境已走完；可以切换情境或从头开始。"
+        : `下一步：${scenario.steps[nextStep].label}。切换情境会从 0% FTP 重新开始。`;
+    }
+
+    function render() {
+      const clamped = PowerScale.clamp(power);
+      const linear = PowerScale.linear(power);
+      const focused = PowerScale.focused(power);
+      const sCurve = PowerScale.sCurve(power);
+      $("raw-value").textContent = power === null ? "无数据" : `${power}%`;
+      $("input-note").textContent = power === null ? "不绘制指针" : clamped !== power ? `绘图按 ${clamped}% 计算` : "实际读数";
+      $("linear-value").textContent = fmt(linear);
+      $("focus-value").textContent = fmt(focused);
+      $("s-curve-value").textContent = fmt(sCurve);
+      $("power-input").value = power === null ? "" : power;
+      $("power-slider").value = power === null ? 0 : Math.max(0, Math.min(450, power));
+      drawGauge("linear-gauge", linear, PowerScale.linear);
+      drawGauge("focus-gauge", focused, PowerScale.focused);
+      drawGauge("s-curve-gauge", sCurve, PowerScale.sCurve, "#a45d9f");
+      drawChart(linear, focused, sCurve);
+      renderScenario();
+    }
+
+    $("power-slider").addEventListener("input", event => { power = Number(event.target.value); scenarioIndex = null; render(); });
+    $("power-input").addEventListener("change", event => {
+      power = event.target.value.trim() === "" ? null : Number(event.target.value);
+      scenarioIndex = null;
+      render();
+    });
+    $("presets").addEventListener("click", event => {
+      const value = event.target.closest("button")?.dataset.power;
+      if (value === undefined) return;
+      power = value === "missing" ? null : Number(value);
+      scenarioIndex = null;
+      render();
+    });
+    $("scenario-tabs").addEventListener("click", event => {
+      const index = event.target.closest("button")?.dataset.scenario;
+      if (index === undefined) return;
+      scenarioIndex = Number(index);
+      nextStep = 0;
+      power = 0;
+      render();
+    });
+    $("scenario-steps").addEventListener("click", event => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      if (button.dataset.restart) { nextStep = 0; power = 0; }
+      else if (Number(button.dataset.step) === nextStep) power = scenarios[scenarioIndex].steps[nextStep++].value;
+      render();
+    });
+
+    $("anchor-rows").innerHTML = [0, 50, 100, 120, 200, 400].map(p =>
+      `<tr><td>${p}%</td><td>${fmt(PowerScale.linear(p))}</td><td>${fmt(PowerScale.focused(p))}</td><td>${fmt(PowerScale.sCurve(p))}</td></tr>`
+    ).join("");
+    render();
+  </script>
+</body>
+</html>

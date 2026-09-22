@@ -10,4 +10,16 @@
         displayName="@string/rear_cog_teeth_name"
         graphical="true"
         icon="@drawable/ic_extension" />
+    <DataType
+        typeId="climber-field-1"
+        description="@string/climber_field_1_description"
+        displayName="@string/climber_field_1_name"
+        graphical="true"
+        icon="@drawable/ic_extension" />
+    <DataType
+        typeId="climber-field-2"
+        description="@string/climber_field_2_description"
+        displayName="@string/climber_field_2_name"
+        graphical="true"
+        icon="@drawable/ic_extension" />
 </ExtensionInfo>

@@ -1,6 +1,7 @@
 package com.jxguo92.mykarooextension.feature.datafield.rearcogteeth
 
 import android.content.Context
+import com.jxguo92.mykarooextension.core.karoo.rearCogReading
 import io.hammerhead.karooext.extension.DataTypeImpl
 import io.hammerhead.karooext.internal.Emitter
 import io.hammerhead.karooext.internal.ViewEmitter
@@ -31,7 +32,7 @@ class RearCogTeethDataField(
         }
 
         fun render(state: StreamState) {
-            val reading = (state as? StreamState.Streaming)?.dataPoint?.values?.toReading()
+            val reading = state.rearCogReading()
             emitter.updateView(RearCogTeethView.render(context, config, reading?.displayText ?: "--"))
         }
 
@@ -44,7 +45,7 @@ class RearCogTeethDataField(
 
         fun mapState(state: StreamState, outputDataTypeId: String): StreamState {
             if (state !is StreamState.Streaming) return state
-            val reading = state.dataPoint.values.toReading() ?: return StreamState.NotAvailable
+            val reading = state.rearCogReading() ?: return StreamState.NotAvailable
             return StreamState.Streaming(
                 DataPoint(
                     dataTypeId = outputDataTypeId,
@@ -53,10 +54,5 @@ class RearCogTeethDataField(
             )
         }
 
-        private fun Map<String, Double>.toReading(): RearCogTeethReading? = RearCogTeethCalculator.resolve(
-            reportedTeeth = get(DataType.Field.SHIFTING_REAR_GEAR_TEETH),
-            rearGearIndex = get(DataType.Field.SHIFTING_REAR_GEAR),
-            rearGearCount = get(DataType.Field.SHIFTING_REAR_GEAR_MAX),
-        )
     }
 }

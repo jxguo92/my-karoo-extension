@@ -1,4 +1,4 @@
-package com.jxguo92.mykarooextension.feature.datafield.rearcogteeth
+package com.jxguo92.mykarooextension.core.karoo
 
 import kotlin.math.roundToInt
 
@@ -6,7 +6,7 @@ data class RearCogTeethReading(
     val teeth: Int,
     val inferred: Boolean,
 ) {
-    val displayText: String = "$teeth${if (inferred) "'" else ""}"
+    val displayText: String = "${if (inferred) "≈" else ""}${teeth}T"
 }
 
 object RearCogTeethCalculator {

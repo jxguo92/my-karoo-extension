@@ -15,6 +15,8 @@ class DataFieldRegistryTest {
 
         assertEquals(typeIds.size, typeIds.toSet().size)
         assertEquals(typeIds.toSet(), xmlTypeIds.toSet())
+        assertEquals(listOf("rear-cog-teeth", "climber-field-1", "climber-field-2"), typeIds)
+        assertEquals(typeIds, xmlTypeIds)
     }
 
     @Test

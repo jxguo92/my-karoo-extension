@@ -4,4 +4,8 @@
     <string name="extension_name">My Karoo Extension</string>
     <string name="rear_cog_teeth_name">Rear Cog Teeth</string>
     <string name="rear_cog_teeth_description">Current rear cog tooth count</string>
+    <string name="climber_field_1_name">Climber Field 1</string>
+    <string name="climber_field_1_description">Distance to summit, percent FTP, and elevation remaining</string>
+    <string name="climber_field_2_name">Climber Field 2</string>
+    <string name="climber_field_2_description">Heart rate, cadence, and rear cog teeth</string>
 </resources>

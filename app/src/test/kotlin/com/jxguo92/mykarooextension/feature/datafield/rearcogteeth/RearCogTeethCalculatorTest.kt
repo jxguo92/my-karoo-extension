@@ -1,5 +1,8 @@
 package com.jxguo92.mykarooextension.feature.datafield.rearcogteeth
 
+import com.jxguo92.mykarooextension.core.karoo.RearCogTeethCalculator
+import com.jxguo92.mykarooextension.core.karoo.RearCogTeethReading
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -14,7 +17,7 @@ class RearCogTeethCalculatorTest {
         )
 
         assertEquals(RearCogTeethReading(teeth = 24, inferred = false), reading)
-        assertEquals("24", reading?.displayText)
+        assertEquals("24T", reading?.displayText)
     }
 
     @Test
@@ -29,7 +32,7 @@ class RearCogTeethCalculatorTest {
             )
 
             assertEquals(RearCogTeethReading(teeth = teeth, inferred = true), reading)
-            assertEquals("$teeth'", reading?.displayText)
+            assertEquals("≈${teeth}T", reading?.displayText)
         }
     }
 

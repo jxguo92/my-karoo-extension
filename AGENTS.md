@@ -12,6 +12,13 @@
 
 保持单一 `app` 模块，并按功能垂直切片。优先选择可定位、可测试、低认知负担的实现：Kotlin、Coroutines/Flow、Compose 设置页、DataStore，以及仅用于图形 Data Field 的 Glance。
 
+## New Karoo 设备规格
+
+- 屏幕分辨率：800 × 480 像素，支持 1670 万色。
+- 设备屏幕物理尺寸：高 68 mm、宽 42 mm。
+- Data Field 显示区域：高 55 mm、宽 42 mm，布局为 5 行 2 列。
+- 设计和预览 Data Field 时，以显示区域及 5 行 2 列布局为准，确保内容在设备上的尺寸和排列可读。
+
 ## 工作顺序
 
 1. 修改前阅读相邻实现、测试和资源声明；涉及项目结构决策时再阅读 `docs/research/karoo-extension-project-structure.md`。

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tri · Karoo Data Field UI prototype</title>
+  <!-- THROWAWAY PROTOTYPE: the selected tri-dashboard layout on one local page. -->
+  <style>
+    :root { font-family: Arial, "Noto Sans SC", sans-serif; color: #eaf1f2; background: #111820; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .workspace { min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: 42px; padding: 26px 24px; }
+    .screen { width: min(480px, calc(100vw - 24px)); aspect-ratio: 3 / 5; flex: none; border-radius: 8px; overflow: hidden; box-shadow: 0 28px 75px #0009; }
+    .screen svg { display: block; width: 100%; height: 100%; }
+    .notes { max-width: 290px; }
+    .eyebrow { color: #91b1b6; font-size: 11px; font-weight: 800; letter-spacing: .2em; }
+    h1 { font-size: 28px; line-height: 1.15; margin: 10px 0 14px; }
+    .notes p { color: #a7b8bd; font-size: 14px; line-height: 1.55; margin: 0 0 22px; }
+    .state { background: #1c2832; border: 1px solid #405661; border-radius: 12px; padding: 16px; }
+    .state-title { color: #d6e7e9; font-size: 12px; font-weight: 800; letter-spacing: .12em; margin-bottom: 12px; }
+    .state-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; color: #a8b9c0; font-size: 13px; }
+    .state-grid strong { color: #f7fafa; font-variant-numeric: tabular-nums; }
+    .state small { display: block; color: #91a8b1; line-height: 1.5; margin-top: 14px; }
+    .tag { position: fixed; top: 12px; left: 16px; color: #91a5ae; font-size: 10px; letter-spacing: .15em; }
+    @media (max-width: 850px) { .workspace { flex-direction: column; gap: 20px; } .notes { max-width: min(480px, 100%); width: 100%; } .state { display: none; } }
+    @media (max-width: 520px) { .workspace { padding: 10px; } .tag { display: none; } .notes h1 { font-size: 19px; margin: 6px 0; } .notes p { font-size: 12px; margin-bottom: 0; } }
+  </style>
+</head>
+<body>
+  <div class="tag">THROWAWAY UI PROTOTYPE · TRI</div>
+  <main class="workspace">
+    <div class="screen" id="screen" role="img" aria-label="三表盘 Karoo Data Field 原型"></div>
+    <aside class="notes">
+      <div class="eyebrow">KAROO · 480 × 800</div>
+      <h1>叠弧座舱</h1>
+      <p>中央功率圆环由左右两条分区弧包围；踏频、速度、心率在圆环下方横向排列。</p>
+      <div class="state">
+        <div class="state-title">模拟实时状态</div>
+        <div class="state-grid" id="state-grid"></div>
+        <small>功率、心率与踏频按固定波形变化；其他读数固定。</small>
+      </div>
+    </aside>
+  </main>
+  <script>
+    const colors = ['#5ed39a', '#52bde5', '#4689ed', '#e9cd58', '#f69b61', '#ec5c78', '#a477e6'];
+    const powerBounds = [0, 95, 145, 200, 255, 310, 365, 420];
+    const hrBounds = [0, 105, 125, 145, 160, 175, 190];
+    const startedAt = performance.now();
+    const screen = document.getElementById('screen');
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const rad = a => a * Math.PI / 180;
+    const pt = (cx, cy, r, a) => [cx + r * Math.cos(rad(a)), cy + r * Math.sin(rad(a))];
+    const fmt = n => Number(n).toFixed(1);
+    const arc = (cx, cy, r, a0, a1) => {
+      const p = pt(cx, cy, r, a0), q = pt(cx, cy, r, a1);
+      return `M ${fmt(p[0])} ${fmt(p[1])} A ${r} ${r} 0 ${Math.abs(a1 - a0) > 180 ? 1 : 0} ${a1 >= a0 ? 1 : 0} ${fmt(q[0])} ${fmt(q[1])}`;
+    };
+    const path = (d, stroke, width, extra = '') => `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${width}" ${extra}/>`;
+    const line = (x1, y1, x2, y2, stroke, width = 1, extra = '') => `<line x1="${fmt(x1)}" y1="${fmt(y1)}" x2="${fmt(x2)}" y2="${fmt(y2)}" stroke="${stroke}" stroke-width="${width}" ${extra}/>`;
+    const rect = (x, y, w, h, fill, r = 0, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" ${extra}/>`;
+    const txt = (x, y, s, size, fill = '#f1f7f7', anchor = 'middle', weight = 700, extra = '') => `<text x="${x}" y="${y}" fill="${fill}" font-family="Arial, sans-serif" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}" ${extra}>${s}</text>`;
+    function reading(t) {
+      return {
+        power: Math.round(245 + 77 * Math.sin(t / 6.1) + 20 * Math.sin(t / 1.8)),
+        hr: Math.round(156 + 14 * Math.sin(t / 9.8) + 4 * Math.sin(t / 3.9)),
+        cadence: Math.round(88 + 15 * Math.sin(t / 7.4) + 4 * Math.sin(t / 2.7)),
+        speed: 28.6, avgSpeed: 27.4, grade: 4.8, avgHr: 148, avgPower: 198, np: 214, gear: '6/13'
+      };
+    }
+    function zoneFraction(value, bounds) {
+      const v = clamp(value, bounds[0], bounds[bounds.length - 1]);
+      for (let i = 0; i < bounds.length - 1; i++) {
+        if (v <= bounds[i + 1]) return (i + (v - bounds[i]) / (bounds[i + 1] - bounds[i])) / (bounds.length - 1);
+      }
+      return 1;
+    }
+    function cadenceFraction(value) { return clamp((value - 51) / 60, 0, 1); }
+    function gauge(cx, cy, r, start, sweep, value, kind, width, base) {
+      const n = kind === 'cadence' ? 12 : kind === 'power' ? 7 : 6;
+      const f = kind === 'cadence' ? cadenceFraction(value) : zoneFraction(value, kind === 'power' ? powerBounds : hrBounds);
+      let out = path(arc(cx, cy, r, start, start + sweep), base, width + 5, 'stroke-linecap="round"');
+      for (let i = 0; i < n; i++) {
+        // Equal arc-length gaps across all three gauges, regardless of radius.
+        const gap = 1.3 * 158 / r;
+        const halfGap = Math.sign(sweep) * gap / 2;
+        const a0 = start + sweep * i / n + halfGap;
+        const a1 = start + sweep * (i + 1) / n - halfGap;
+        const color = kind === 'cadence' ? (i < 6 ? '#e7edec' : i < 10 ? '#66d69b' : '#ee6a68') : colors[kind === 'hr' ? [0, 1, 2, 3, 5, 6][i] : i];
+        out += path(arc(cx, cy, r, a0, a1), color, width, 'stroke-linecap="butt"');
+      }
+      const a = start + sweep * f, p = pt(cx, cy, r, a);
+      const markerHalfLength = (width + 8) / 2;
+      const towardCenterX = (cx - p[0]) / r;
+      const towardCenterY = (cy - p[1]) / r;
+      out += line(
+        p[0] - towardCenterX * markerHalfLength, p[1] - towardCenterY * markerHalfLength,
+        p[0] + towardCenterX * markerHalfLength, p[1] + towardCenterY * markerHalfLength,
+        '#fff', 5
+      );
+      return out;
+    }
+    function frame(bg, border, ink = '#f4f8f8') {
+      return rect(0, 0, 480, 800, bg, 8) + rect(1, 1, 478, 798, 'none', 8, `stroke="${border}" stroke-width="2"`) +
+        line(0, 81, 480, 81, border) + line(0, 719, 480, 719, border) +
+        txt(25, 49, '01:24:36', 23, ink, 'start', 700, 'font-variant-numeric="tabular-nums"') +
+        txt(455, 49, '14:32', 23, ink, 'end', 700, 'font-variant-numeric="tabular-nums"');
+    }
+    function pair(x, y, label, value, unit) {
+      const muted = '#9ab1b8', ink = '#f1f7f7';
+      return txt(x, y, label, 11, muted, 'middle', 700, 'letter-spacing="1"') +
+        txt(x, y + 29, value, 26, ink) + txt(x, y + 46, unit, 11, muted);
+    }
+    function direction(x, y, letter, a, ink, muted) {
+      const tip = pt(x, y - 8, 17, a);
+      return txt(x, y + 20, letter, 13, muted) +
+        path(`M ${fmt(x)} ${fmt(y - 8)} L ${fmt(tip[0])} ${fmt(tip[1])}`, ink, 3, 'stroke-linecap="round"') +
+        `<circle cx="${fmt(tip[0])}" cy="${fmt(tip[1])}" r="3.5" fill="${ink}"/>`;
+    }
+    function dashboard(d) {
+      let out = frame('#101b24', '#41545f');
+      out += '<g transform="translate(0 -32)">';
+      // The side scales are parentheses around the power ring, following sketch.png.
+      out += gauge(324, 322, 290, -210, 60, d.cadence, 'cadence', 15, '#263e48');
+      out += gauge(156, 322, 290, 30, -60, d.hr, 'hr', 15, '#263e48');
+      out += gauge(240, 322, 158, -225, 270, d.power, 'power', 15, '#30434b');
+      out += txt(240, 260, d.gear, 30, '#fff', 'middle', 700, 'letter-spacing="1.5"');
+      out += txt(240, 313, '3s PWR', 15, '#a9bec4', 'middle', 700, 'letter-spacing="1.8"');
+      out += txt(240, 390, d.power, 76) + txt(240, 420, 'W', 19, '#87dbbf');
+      out += txt(82, 510, 'CAD', 9.9, '#a8bec3', 'middle', 700, 'letter-spacing="1.4"') + txt(82, 550, d.cadence, 37.8) + txt(82, 568, 'rpm', 9.9, '#a8bec3');
+      out += txt(240, 493, 'SPD', 13.2, '#a8bec3', 'middle', 700, 'letter-spacing="1.4"') + txt(240, 554, d.speed.toFixed(1), 54) + txt(240, 576, 'km/h', 13.2, '#a8bec3');
+      out += txt(398, 510, 'HR', 9.9, '#a8bec3', 'middle', 700, 'letter-spacing="1.4"') + txt(398, 550, d.hr, 37.8) + txt(398, 568, 'bpm', 9.9, '#a8bec3');
+      out += line(24, 591, 456, 591, '#445b63');
+      out += pair(88, 609, 'AVG SPD', d.avgSpeed.toFixed(1), 'km/h') + pair(240, 609, 'GRADE', '+' + d.grade.toFixed(1), '%') + pair(392, 609, 'AVG HR', d.avgHr, 'bpm');
+      out += direction(38, 682, 'W', -135, '#dbe7e9', '#a7bbc0') + direction(442, 682, 'N', -45, '#dbe7e9', '#a7bbc0');
+      out += txt(145, 682, 'AVG PWR', 10, '#9eb8bc') + txt(145, 703, d.avgPower + ' W', 20);
+      out += txt(335, 682, 'NP', 10, '#9eb8bc') + txt(335, 703, d.np + ' W', 20);
+      out += '</g>';
+      return out;
+    }
+    function render() {
+      const d = reading((performance.now() - startedAt) / 1000);
+      screen.innerHTML = `<svg viewBox="0 0 480 800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${dashboard(d)}</svg>`;
+      document.getElementById('state-grid').innerHTML = `
+        <span>3 秒功率</span><strong>${d.power} W</strong>
+        <span>心率</span><strong>${d.hr} bpm</strong>
+        <span>踏频</span><strong>${d.cadence} rpm</strong>
+        <span>速度</span><strong>${d.speed.toFixed(1)} km/h</strong>
+        <span>档位</span><strong>${d.gear}</strong>
+        <span>平均速度 / 坡度</span><strong>${d.avgSpeed.toFixed(1)} / +${d.grade.toFixed(1)}%</strong>
+        <span>平均心率</span><strong>${d.avgHr} bpm</strong>
+        <span>平均功率 / NP</span><strong>${d.avgPower} / ${d.np} W</strong>
+        <span>来风 / 北向</span><strong>左前 / 右上</strong>`;
+    }
+    render();
+    setInterval(render, 850);
+  </script>
+</body>
+</html>

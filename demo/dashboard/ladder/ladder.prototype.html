@@ -21,36 +21,60 @@
     .state-grid strong { color: #fff; font-variant-numeric: tabular-nums; }
     .state small { display: block; margin-top: 14px; color: #7d939d; line-height: 1.5; }
     .prototype-tag { position: fixed; top: 12px; left: 16px; color: #82949d; font-size: 10px; letter-spacing: .15em; }
+    .prototype-switcher { position: fixed; z-index: 10; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 7px; border: 1px solid #63737c; border-radius: 999px; background: #080d11eb; box-shadow: 0 12px 32px #000a; backdrop-filter: blur(12px); }
+    .prototype-switcher button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: #25323a; color: #f4f8f8; font-size: 18px; cursor: pointer; }
+    .prototype-switcher button:hover { background: #3a4b55; }
+    .prototype-switcher span { min-width: 132px; color: #dce7e9; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-align: center; }
     @media (max-width: 850px) { .workspace { flex-direction: column; gap: 22px; padding: 28px 16px; } .notes { max-width: min(480px, 100%); width: 100%; } .notes p { margin-bottom: 12px; } .state { display: none; } }
     @media (max-width: 520px) { .prototype-tag { display: none; } .workspace { padding-top: 10px; } .screen { width: min(480px, calc(100vw - 20px)); } .notes h1 { font-size: 19px; margin: 6px 0; } .notes p { font-size: 12px; } }
   </style>
 </head>
 <body>
-  <!-- Throwaway UI prototype: the selected ladder dashboard design on one local page. -->
+  <!-- Two ladder dashboard variants, switchable via ?variant=A or ?variant=B on this prototype page. -->
   <div class="prototype-tag">THROWAWAY UI PROTOTYPE · LADDER</div>
   <main class="workspace">
     <div class="screen" id="screen" role="img" aria-label="Karoo 仪表盘原型，功率、心率和踏频自动变化"></div>
     <aside class="notes">
       <div class="eyebrow">KAROO · 480 × 800</div>
       <h1>双轨座舱</h1>
-      <p>两条宽分区轨道向下张开，中央是速度圆表。功率、心率和踏频按固定波形自动变化。</p>
+      <p id="variant-description"></p>
       <div class="state" aria-live="off">
         <div class="state-title">模拟实时状态</div>
         <div class="state-grid">
           <span>3 秒功率</span><strong id="power-state"></strong>
           <span>心率</span><strong id="hr-state"></strong>
           <span>踏频</span><strong id="cadence-state"></strong>
-          <span>速度</span><strong>28.6 km/h</strong>
+          <span>速度</span><strong id="speed-state"></strong>
         </div>
         <small>踏频只在仪表中显示为灯珠；这里的数字用于观察模拟状态。</small>
       </div>
     </aside>
   </main>
+  <nav class="prototype-switcher" aria-label="原型方案切换">
+    <button id="previous-variant" type="button" aria-label="上一套方案">←</button>
+    <span id="variant-label" aria-live="polite"></span>
+    <button id="next-variant" type="button" aria-label="下一套方案">→</button>
+  </nav>
   <script>
     const zoneColors = ['#55c99c', '#5cbce5', '#4280ea', '#ebcb52', '#ff8a5c', '#ed547a', '#a774f6'];
-    const powerBounds = [0, 95, 145, 200, 255, 310, 365, 420];
-    const hrBounds = [0, 105, 125, 145, 160, 175, 190];
+    const ftp = 200;
+    const powerBounds = [.41, .55, .75, .9, 1.05, 1.2, 1.5, 2].map(percent => Math.round(percent * ftp));
+    const restingHr = 50;
+    const maxHr = 190;
+    const hrr = maxHr - restingHr;
+    const hrBounds = [.41, .5, .6, .7, .8, .9, 1].map(percent => restingHr + percent * hrr);
+    const speedMin = 0;
+    const speedMax = 60;
+    const speedStep = 10;
+    const variants = ['A', 'B'];
+    const variantNames = { A: '分区阶梯', B: '连续填充' };
+    const variantDescriptions = {
+      A: '两条宽分区轨道向下张开，中央是速度圆表。功率、心率和踏频按固定波形自动变化。',
+      B: '左右轨道采用与速度圆弧一致的连续填充方式；填充色随当前功率和心率所属区域整体变化。'
+    };
     const screen = document.getElementById('screen');
+    const requestedVariant = new URLSearchParams(window.location.search).get('variant')?.toUpperCase();
+    let activeVariant = variants.includes(requestedVariant) ? requestedVariant : 'A';
     const angle = d => d * Math.PI / 180;
     const point = (cx, cy, r, d) => [cx + r * Math.cos(angle(d)), cy + r * Math.sin(angle(d))];
     const arc = (cx, cy, r, a0, a1) => {
@@ -63,11 +87,18 @@
     const rect = (x, y, w, h, fill, radius = 0, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="${fill}" ${extra}/>`;
     const path = (d, stroke, width, fill = 'none', extra = '') => `<path d="${d}" stroke="${stroke}" stroke-width="${width}" fill="${fill}" ${extra}/>`;
 
+    function steppedTriangle(elapsed, min, max, increment, phaseSteps = 0) {
+      const steps = (max - min) / increment;
+      const position = (Math.floor(elapsed / .85) + phaseSteps) % (steps * 2);
+      const step = position <= steps ? position : steps * 2 - position;
+      return min + step * increment;
+    }
     function reading(elapsed) {
       return {
-        power: Math.round(245 + 77 * Math.sin(elapsed / 6.1) + 20 * Math.sin(elapsed / 1.8)),
-        hr: Math.round(156 + 14 * Math.sin(elapsed / 9.8 + .5) + 4 * Math.sin(elapsed / 3.9)),
-        cadence: Math.round(88 + 15 * Math.sin(elapsed / 7.4 + 1.2) + 4 * Math.sin(elapsed / 2.7))
+        power: steppedTriangle(elapsed, 80, 400, 20),
+        hr: steppedTriangle(elapsed, 100, 180, 5, 7),
+        cadence: Math.round(88 + 15 * Math.sin(elapsed / 7.4 + 1.2) + 4 * Math.sin(elapsed / 2.7)),
+        speed: 28.6
       };
     }
     function zoneFraction(value, bounds) {
@@ -76,6 +107,19 @@
         if (v <= bounds[i + 1]) return (i + (v - bounds[i]) / (bounds[i + 1] - bounds[i])) / (bounds.length - 1);
       }
       return 1;
+    }
+    function zoneColor(value, bounds) {
+      const n = bounds.length - 1;
+      const v = Math.max(bounds[0], Math.min(value, bounds[bounds.length - 1]));
+      let zone = n - 1;
+      for (let i = 0; i < n; i++) {
+        if (v <= bounds[i + 1]) {
+          zone = i;
+          break;
+        }
+      }
+      const colorIndex = n === 6 ? [0, 1, 2, 3, 5, 6][zone] : zone;
+      return zoneColors[colorIndex];
     }
     function commonFrame(bg, border) {
       return rect(0, 0, 480, 800, bg, 8) +
@@ -97,7 +141,7 @@
       }
       return out;
     }
-    function rail(side, value, bounds) {
+    function segmentedRail(side, value, bounds) {
       const n = bounds.length - 1;
       const top = 202, bottom = 527;
       const yAt = f => bottom - (bottom - top) * f;
@@ -119,17 +163,30 @@
       out += line(x - 19, y, x + 19, y, '#f7fbfa', 5);
       return out;
     }
-    function speedArc(cx, cy, radius) {
+    function continuousRail(side, value, bounds) {
+      const top = 202, bottom = 527;
+      const yAt = f => bottom - (bottom - top) * f;
+      const centerX = side === 'left' ? 76 : 404;
+      const spread = y => (y - top) * .075;
+      const xAt = y => centerX + (side === 'left' ? -1 : 1) * spread(y);
+      const f = zoneFraction(value, bounds);
+      const y = yAt(f);
+      let out = path(`M ${xAt(bottom)} ${bottom} L ${centerX} ${top}`, '#435761', 24, 'none', 'stroke-linecap="round"');
+      out += path(`M ${xAt(bottom)} ${bottom} L ${xAt(y)} ${y}`, zoneColor(value, bounds), 14, 'none', 'stroke-linecap="round"');
+      return out;
+    }
+    function speedArc(cx, cy, radius, speed) {
+      const clampedSpeed = Math.max(speedMin, Math.min(speed, speedMax));
+      const speedFraction = (clampedSpeed - speedMin) / (speedMax - speedMin);
       let out = path(arc(cx, cy, radius, -225, 45), '#435761', 10, 'none', 'stroke-linecap="round"');
-      out += path(arc(cx, cy, radius, -225, -225 + 270 * 28.6 / 60), '#7bdbce', 6, 'none', 'stroke-linecap="round"');
-      for (let i = 0; i <= 30; i++) {
-        const a = -225 + i * 9, major = i % 5 === 0;
+      out += path(arc(cx, cy, radius, -225, -225 + 270 * speedFraction), '#7bdbce', 6, 'none', 'stroke-linecap="round"');
+      const speedSegments = (speedMax - speedMin) / speedStep;
+      for (let i = 0; i <= speedSegments; i++) {
+        const a = -225 + i * 270 / speedSegments;
         const p0 = point(cx, cy, radius + 9, a);
-        const p1 = point(cx, cy, radius + (major ? 19 : 14), a);
-        out += line(p0[0], p0[1], p1[0], p1[1], major ? '#c6d7d9' : '#69818a', major ? 2 : 1);
+        const p1 = point(cx, cy, radius + 19, a);
+        out += line(p0[0], p0[1], p1[0], p1[1], '#c6d7d9', 2);
       }
-      const needle = point(cx, cy, radius + 4, -225 + 270 * 28.6 / 60);
-      out += `<circle cx="${needle[0]}" cy="${needle[1]}" r="5" fill="#f5ffff"/>`;
       return out;
     }
     function auxRow() {
@@ -147,28 +204,56 @@
       out += txt(315, lowY, 'DIST', 11, muted, 'middle', 700, 'letter-spacing="1"') + txt(315, lowY + 25, '42.7 km', 24.2, text);
       return out;
     }
-    function dashboard(d) {
+    function dashboardWithRails(d, railRenderer) {
       let out = commonFrame('#111b22', '#42545d') + cadenceLights(d.cadence);
-      out += rail('left', d.power, powerBounds) + rail('right', d.hr, hrBounds);
-      out += speedArc(240, 386, 111);
-      out += txt(120, 204, 'W', 11, '#9db3ba') + path('M 135 230 L 115 210 L 116 222', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
-      out += txt(360, 204, 'N', 11, '#9db3ba') + path('M 345 230 L 365 210 L 362 223', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
-      out += txt(240, 204, 'G', 11, '#9db3ba') + txt(240, 232, '3.6%', 22, '#e9f3f2');
+      out += railRenderer('left', d.power, powerBounds) + railRenderer('right', d.hr, hrBounds);
+      out += speedArc(240, 386, 111, d.speed);
+      out += path('M 135 230 L 115 210 L 116 222', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
+      out += path('M 345 230 L 365 210 L 362 223', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
+      out += txt(240, 232, '3.6%', 22, '#e9f3f2');
       out += txt(240, 330, '6/13', 20.88, '#9db9c0', 'middle', 700, 'letter-spacing="1"');
-      out += txt(240, 392, '28.6', 64, '#f5faf8', 'middle', 700, 'dominant-baseline="middle"') + txt(240, 446, 'km/h', 15, '#9ab2ba', 'middle', 700, 'letter-spacing="2"');
+      out += txt(240, 392, d.speed.toFixed(1), 64, '#f5faf8', 'middle', 700, 'dominant-baseline="middle"') + txt(240, 446, 'km/h', 15, '#9ab2ba', 'middle', 700, 'letter-spacing="2"');
       out += txt(122, 538, String(d.power), 36) + txt(122, 557, 'W', 12, '#9db3ba');
       out += txt(358, 538, String(d.hr), 36) + txt(358, 557, 'bpm', 12, '#9db3ba');
       out += `<g transform="translate(0 -16)">${auxRow()}</g>`;
       return out;
     }
+    const dashboardVariants = {
+      A: d => dashboardWithRails(d, segmentedRail),
+      B: d => dashboardWithRails(d, continuousRail)
+    };
     function render() {
       const d = reading(performance.now() / 1000);
-      screen.innerHTML = `<svg viewBox="0 0 480 800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${dashboard(d)}</svg>`;
+      screen.innerHTML = `<svg viewBox="0 0 480 800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${dashboardVariants[activeVariant](d)}</svg>`;
       document.getElementById('power-state').textContent = `${d.power} W`;
       document.getElementById('hr-state').textContent = `${d.hr} bpm`;
       document.getElementById('cadence-state').textContent = `${d.cadence} rpm`;
+      document.getElementById('speed-state').textContent = `${d.speed.toFixed(1)} km/h`;
     }
-    render();
+    function setVariant(nextVariant, updateUrl = true) {
+      activeVariant = nextVariant;
+      document.getElementById('variant-label').textContent = `${activeVariant} — ${variantNames[activeVariant]}`;
+      document.getElementById('variant-description').textContent = variantDescriptions[activeVariant];
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('variant', activeVariant);
+        window.history.replaceState(null, '', url);
+      }
+      render();
+    }
+    function cycleVariant(direction) {
+      const currentIndex = variants.indexOf(activeVariant);
+      setVariant(variants[(currentIndex + direction + variants.length) % variants.length]);
+    }
+    document.getElementById('previous-variant').addEventListener('click', () => cycleVariant(-1));
+    document.getElementById('next-variant').addEventListener('click', () => cycleVariant(1));
+    window.addEventListener('keydown', event => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.matches('input, textarea, [contenteditable]')) return;
+      if (event.key === 'ArrowLeft') cycleVariant(-1);
+      if (event.key === 'ArrowRight') cycleVariant(1);
+    });
+    setVariant(activeVariant, false);
     setInterval(render, 850);
   </script>
 </body>

@@ -1,10 +1,11 @@
 package com.jxguo92.mykarooextension.core.weather.qweather
 
+import com.jxguo92.mykarooextension.core.http.HttpGet
+import com.jxguo92.mykarooextension.core.http.HttpRequest
+import com.jxguo92.mykarooextension.core.http.HttpTransportException
+import com.jxguo92.mykarooextension.core.http.UrlConnectionHttpGet
 import com.jxguo92.mykarooextension.core.weather.CurrentWeather
 import com.jxguo92.mykarooextension.core.weather.GeoLocation
-import com.jxguo92.mykarooextension.core.weather.HttpGet
-import com.jxguo92.mykarooextension.core.weather.HttpRequest
-import com.jxguo92.mykarooextension.core.weather.UrlConnectionHttpGet
 import com.jxguo92.mykarooextension.core.weather.WeatherException
 import com.jxguo92.mykarooextension.core.weather.WeatherProvider
 import java.math.BigDecimal
@@ -15,12 +16,15 @@ class QWeatherProvider(
     private val http: HttpGet = UrlConnectionHttpGet(),
 ) : WeatherProvider {
     override suspend fun currentWeather(location: GeoLocation): CurrentWeather {
-        val response = http.get(
-            HttpRequest(
-                url = currentWeatherUrl(config.apiHost, location),
-                headers = mapOf("X-QW-Api-Key" to config.apiKey),
-            ),
+        val request = HttpRequest(
+            url = currentWeatherUrl(config.apiHost, location),
+            headers = mapOf("X-QW-Api-Key" to config.apiKey),
         )
+        val response = try {
+            http.get(request)
+        } catch (error: HttpTransportException) {
+            throw WeatherException("Weather request failed.", cause = error)
+        }
         if (response.statusCode !in 200..299) {
             throw WeatherException(
                 message = QWeatherCurrentWeatherParser.errorMessage(response.statusCode, response.body),

@@ -1,14 +1,16 @@
 package com.jxguo92.mykarooextension.core.weather.qweather
 
+import com.jxguo92.mykarooextension.core.http.HttpGet
+import com.jxguo92.mykarooextension.core.http.HttpRequest
+import com.jxguo92.mykarooextension.core.http.HttpResponse
+import com.jxguo92.mykarooextension.core.http.HttpTransportException
 import com.jxguo92.mykarooextension.core.weather.GeoLocation
-import com.jxguo92.mykarooextension.core.weather.HttpGet
-import com.jxguo92.mykarooextension.core.weather.HttpRequest
-import com.jxguo92.mykarooextension.core.weather.HttpResponse
 import com.jxguo92.mykarooextension.core.weather.WeatherException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,6 +61,26 @@ class QWeatherProviderTest {
         assertEquals(401, error.statusCode)
         assertEquals("Unauthorized: Authentication failed.", error.message)
         assertEquals(1, http.requests.size)
+    }
+
+    @Test
+    fun `wraps transport failures as weather errors`() = runTest {
+        val transportError = HttpTransportException("offline")
+        val http = object : HttpGet {
+            override suspend fun get(request: HttpRequest): HttpResponse = throw transportError
+        }
+        val provider = QWeatherProvider(
+            config = QWeatherConfig.create("abc.qweatherapi.com", "secret-key"),
+            http = http,
+        )
+
+        val error = runCatching {
+            provider.currentWeather(GeoLocation(31.23, 121.47))
+        }.exceptionOrNull()
+
+        assertTrue(error is WeatherException)
+        assertEquals(null, (error as WeatherException).statusCode)
+        assertSame(transportError, error.cause)
     }
 
     @Test

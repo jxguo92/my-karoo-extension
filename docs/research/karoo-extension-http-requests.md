@@ -39,6 +39,15 @@
   到 API 的 DNS/TLS/HTTP 和解析可用，不能证明 Manifest 权限、Karoo 的 KOS 网络栈、
   Wi-Fi/手机连接、休眠、切页、断网重连或 Extension 生命周期行为。
 
+## 实现（2026-09-24）
+
+调研后落地为 `core/http/NetworkAwareHttpGet`：每次请求时读取 Android 默认网络，
+若为 Wi-Fi 且具备 `NET_CAPABILITY_INTERNET`，走路径 A（`UrlConnectionHttpGet`）；
+否则走路径 B（`core/karoo/KarooHttpGet`，`waitForConnection=true`，10 秒业务
+timeout，取消或超时时移除 consumer）。不要求 `VALIDATED`，避免 captive-portal
+探测失败时误判。直连失败不会自动回退到 SDK 通道。为读取网络状态已声明
+`ACCESS_NETWORK_STATE`。下文“本项目现状”描述的是调研时的代码。
+
 网络路径应理解为：
 
 ```text

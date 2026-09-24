@@ -66,6 +66,11 @@
     const speedMin = 0;
     const speedMax = 60;
     const speedStep = 10;
+    const speedMinorTicksPerSegment = 5;
+    const sideRailWidth = 20;
+    const centerRailWidth = 16;
+    const centerTickGap = 4;
+    const railFillRatio = .6;
     const variants = ['A', 'B'];
     const variantNames = { A: '分区阶梯', B: '连续填充' };
     const variantDescriptions = {
@@ -148,9 +153,10 @@
       const centerX = side === 'left' ? 76 : 404;
       const spread = y => (y - top) * .075;
       const xAt = y => centerX + (side === 'left' ? -1 : 1) * spread(y);
-      const width = 24;
+      const width = sideRailWidth;
+      const guideOffset = width / 2 + 8;
       let out = '';
-      out += path(`M ${centerX - 25} ${top - 15} L ${xAt(bottom) - 27} ${bottom + 14} M ${centerX + 25} ${top - 15} L ${xAt(bottom) + 27} ${bottom + 14}`, '#50606a', 1, 'none', 'opacity=".65"');
+      out += path(`M ${centerX - guideOffset} ${top - 15} L ${xAt(bottom) - guideOffset} ${bottom + 14} M ${centerX + guideOffset} ${top - 15} L ${xAt(bottom) + guideOffset} ${bottom + 14}`, '#50606a', 1, 'none', 'opacity=".65"');
       for (let i = 0; i < n; i++) {
         const y0 = yAt((i + 1) / n) + 2, y1 = yAt(i / n) - 2;
         const x0 = xAt(y0), x1 = xAt(y1);
@@ -160,7 +166,8 @@
         out += `<polygon points="${left0},${y0} ${right0},${y0} ${right1},${y1} ${left1},${y1}" fill="${zoneColors[colorIndex]}" opacity="0.9"/>`;
       }
       const f = zoneFraction(value, bounds), y = yAt(f), x = xAt(y);
-      out += line(x - 19, y, x + 19, y, '#f7fbfa', 5);
+      const markerHalfWidth = width / 2 + 4;
+      out += line(x - markerHalfWidth, y, x + markerHalfWidth, y, '#f7fbfa', 3);
       return out;
     }
     function continuousRail(side, value, bounds) {
@@ -171,21 +178,32 @@
       const xAt = y => centerX + (side === 'left' ? -1 : 1) * spread(y);
       const f = zoneFraction(value, bounds);
       const y = yAt(f);
-      let out = path(`M ${xAt(bottom)} ${bottom} L ${centerX} ${top}`, '#435761', 24, 'none', 'stroke-linecap="round"');
-      out += path(`M ${xAt(bottom)} ${bottom} L ${xAt(y)} ${y}`, zoneColor(value, bounds), 14, 'none', 'stroke-linecap="round"');
+      const guideOffset = sideRailWidth / 2 + 8;
+      let out = path(`M ${centerX - guideOffset} ${top - 15} L ${xAt(bottom) - guideOffset} ${bottom + 14} M ${centerX + guideOffset} ${top - 15} L ${xAt(bottom) + guideOffset} ${bottom + 14}`, '#50606a', 1, 'none', 'opacity=".65"');
+      out += path(`M ${xAt(bottom)} ${bottom} L ${centerX} ${top}`, '#435761', sideRailWidth, 'none', 'stroke-linecap="round"');
+      out += path(`M ${xAt(bottom)} ${bottom} L ${xAt(y)} ${y}`, zoneColor(value, bounds), sideRailWidth * railFillRatio, 'none', 'stroke-linecap="round"');
+      for (let i = 1; i < bounds.length - 1; i++) {
+        const tickY = yAt(i / (bounds.length - 1));
+        const tickX = xAt(tickY);
+        out += path(`M ${tickX - 4.5} ${tickY} L ${tickX + 4.5} ${tickY}`, '#50606a', 3, 'none', 'opacity=".72" stroke-linecap="round"');
+        out += path(`M ${tickX - 1.5} ${tickY} L ${tickX + 1.5} ${tickY}`, '#50606a', 1, 'none', 'opacity=".95" stroke-linecap="round"');
+      }
       return out;
     }
     function speedArc(cx, cy, radius, speed) {
       const clampedSpeed = Math.max(speedMin, Math.min(speed, speedMax));
       const speedFraction = (clampedSpeed - speedMin) / (speedMax - speedMin);
-      let out = path(arc(cx, cy, radius, -225, 45), '#435761', 10, 'none', 'stroke-linecap="round"');
-      out += path(arc(cx, cy, radius, -225, -225 + 270 * speedFraction), '#7bdbce', 6, 'none', 'stroke-linecap="round"');
+      let out = path(arc(cx, cy, radius, -225, 45), '#435761', centerRailWidth, 'none', 'stroke-linecap="round"');
+      out += path(arc(cx, cy, radius, -225, -225 + 270 * speedFraction), '#7bdbce', centerRailWidth * railFillRatio, 'none', 'stroke-linecap="round"');
       const speedSegments = (speedMax - speedMin) / speedStep;
-      for (let i = 0; i <= speedSegments; i++) {
-        const a = -225 + i * 270 / speedSegments;
-        const p0 = point(cx, cy, radius + 9, a);
-        const p1 = point(cx, cy, radius + 19, a);
-        out += line(p0[0], p0[1], p1[0], p1[1], '#c6d7d9', 2);
+      const speedTicks = speedSegments * speedMinorTicksPerSegment;
+      const tickStartRadius = radius + centerRailWidth / 2 + centerTickGap;
+      for (let i = 0; i <= speedTicks; i++) {
+        const a = -225 + i * 270 / speedTicks;
+        const major = i % speedMinorTicksPerSegment === 0;
+        const p0 = point(cx, cy, tickStartRadius, a);
+        const p1 = point(cx, cy, tickStartRadius + (major ? 10 : 5), a);
+        out += line(p0[0], p0[1], p1[0], p1[1], major ? '#c6d7d9' : '#69818a', major ? 2 : 1);
       }
       return out;
     }

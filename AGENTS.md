@@ -113,7 +113,8 @@
 仓库拥有 Gradle wrapper 后，在 Windows 使用以下命令：
 
 ```powershell
-# 快速反馈：纯 JVM 测试
+# 快速反馈：JVM 单元测试。local.properties 配置了和风凭据时，
+# QWeatherLiveTest 会真实联网并消耗配额；未配置时自动跳过
 .\gradlew.bat testDebugUnitTest
 
 # 提交前完整验证

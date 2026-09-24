@@ -23,6 +23,15 @@ gpr.key=YOUR_GITHUB_TOKEN
 
 Token 需要 `read:packages` 权限。CI 也可使用 `GITHUB_ACTOR`/`GITHUB_TOKEN`，或 `USERNAME`/`TOKEN` 环境变量。
 
+和风天气实况还需要 API Host 与 API KEY（控制台 → 设置可查看 API Host，另需创建 API KEY 凭据）。在仓库根目录的 `local.properties`（已在 `.gitignore` 中）追加：
+
+```properties
+qweather.apiHost=your-id.qweatherapi.com
+qweather.apiKey=your-api-key
+```
+
+CI 可改用环境变量 `QWEATHER_API_HOST` 与 `QWEATHER_API_KEY`。未配置时工程仍可编译，`QWeatherConfig.fromBuildConfig()` 返回 `null`。这两个值会写入所有构建类型（含 release）APK 的 `BuildConfig`，可被反编译取出；不要把 `local.properties` 提交到仓库。
+
 ## 构建
 
 Windows：

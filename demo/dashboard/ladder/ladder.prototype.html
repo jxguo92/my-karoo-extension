@@ -30,7 +30,7 @@
   </style>
 </head>
 <body>
-  <!-- Two ladder dashboard variants, switchable via ?variant=A or ?variant=B on this prototype page. -->
+  <!-- Three ladder dashboard variants, switchable via ?variant=A, ?variant=B, or ?variant=C on this prototype page. -->
   <div class="prototype-tag">THROWAWAY UI PROTOTYPE · LADDER</div>
   <main class="workspace">
     <div class="screen" id="screen" role="img" aria-label="Karoo 仪表盘原型，功率、心率和踏频自动变化"></div>
@@ -66,16 +66,18 @@
     const speedMin = 0;
     const speedMax = 60;
     const speedStep = 10;
+    const speedBounds = Array.from({ length: 7 }, (_, index) => speedMin + index * speedStep);
     const speedMinorTicksPerSegment = 5;
     const sideRailWidth = 20;
     const centerRailWidth = 16;
     const centerTickGap = 4;
     const railFillRatio = .6;
-    const variants = ['A', 'B'];
-    const variantNames = { A: '分区阶梯', B: '连续填充' };
+    const variants = ['A', 'B', 'C'];
+    const variantNames = { A: '分区阶梯', B: '连续填充', C: '功率核心' };
     const variantDescriptions = {
       A: '两条宽分区轨道向下张开，中央是速度圆表。功率、心率和踏频按固定波形自动变化。',
-      B: '左右轨道采用与速度圆弧一致的连续填充方式；填充色随当前功率和心率所属区域整体变化。'
+      B: '左右轨道采用与速度圆弧一致的连续填充方式；填充色随当前功率和心率所属区域整体变化。',
+      C: '3 秒功率移至中央圆环并随功率区间变色；速度移至左侧，以固定青蓝色连续填充。'
     };
     const screen = document.getElementById('screen');
     const requestedVariant = new URLSearchParams(window.location.search).get('variant')?.toUpperCase();
@@ -170,7 +172,7 @@
       out += line(x - markerHalfWidth, y, x + markerHalfWidth, y, '#f7fbfa', 3);
       return out;
     }
-    function continuousRail(side, value, bounds) {
+    function continuousRail(side, value, bounds, fillColor = zoneColor(value, bounds)) {
       const top = 202, bottom = 527;
       const yAt = f => bottom - (bottom - top) * f;
       const centerX = side === 'left' ? 76 : 404;
@@ -181,12 +183,26 @@
       const guideOffset = sideRailWidth / 2 + 8;
       let out = path(`M ${centerX - guideOffset} ${top - 15} L ${xAt(bottom) - guideOffset} ${bottom + 14} M ${centerX + guideOffset} ${top - 15} L ${xAt(bottom) + guideOffset} ${bottom + 14}`, '#50606a', 1, 'none', 'opacity=".65"');
       out += path(`M ${xAt(bottom)} ${bottom} L ${centerX} ${top}`, '#435761', sideRailWidth, 'none', 'stroke-linecap="round"');
-      out += path(`M ${xAt(bottom)} ${bottom} L ${xAt(y)} ${y}`, zoneColor(value, bounds), sideRailWidth * railFillRatio, 'none', 'stroke-linecap="round"');
+      out += path(`M ${xAt(bottom)} ${bottom} L ${xAt(y)} ${y}`, fillColor, sideRailWidth * railFillRatio, 'none', 'stroke-linecap="round"');
       for (let i = 1; i < bounds.length - 1; i++) {
         const tickY = yAt(i / (bounds.length - 1));
         const tickX = xAt(tickY);
         out += path(`M ${tickX - 4.5} ${tickY} L ${tickX + 4.5} ${tickY}`, '#50606a', 3, 'none', 'opacity=".72" stroke-linecap="round"');
         out += path(`M ${tickX - 1.5} ${tickY} L ${tickX + 1.5} ${tickY}`, '#50606a', 1, 'none', 'opacity=".95" stroke-linecap="round"');
+      }
+      return out;
+    }
+    function powerArc(cx, cy, radius, power) {
+      const powerFraction = zoneFraction(power, powerBounds);
+      let out = path(arc(cx, cy, radius, -225, 45), '#435761', centerRailWidth, 'none', 'stroke-linecap="round"');
+      out += path(arc(cx, cy, radius, -225, -225 + 270 * powerFraction), zoneColor(power, powerBounds), centerRailWidth * railFillRatio, 'none', 'stroke-linecap="round"');
+      const majorTicks = powerBounds.length;
+      const tickStartRadius = radius + centerRailWidth / 2 + centerTickGap;
+      for (let i = 0; i < majorTicks; i++) {
+        const a = -225 + i * 270 / (majorTicks - 1);
+        const p0 = point(cx, cy, tickStartRadius, a);
+        const p1 = point(cx, cy, tickStartRadius + 10, a);
+        out += line(p0[0], p0[1], p1[0], p1[1], '#c6d7d9', 2);
       }
       return out;
     }
@@ -236,9 +252,24 @@
       out += `<g transform="translate(0 -16)">${auxRow()}</g>`;
       return out;
     }
+    function dashboardVariantC(d) {
+      let out = commonFrame('#111b22', '#42545d') + cadenceLights(d.cadence);
+      out += continuousRail('left', d.speed, speedBounds, '#7bdbce') + continuousRail('right', d.hr, hrBounds);
+      out += powerArc(240, 386, 111, d.power);
+      out += path('M 135 230 L 115 210 L 116 222', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
+      out += path('M 345 230 L 365 210 L 362 223', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
+      out += txt(240, 232, '3.6%', 22, '#e9f3f2');
+      out += txt(240, 330, '6/13', 20.88, '#9db9c0', 'middle', 700, 'letter-spacing="1"');
+      out += txt(240, 392, String(d.power), 64, '#f5faf8', 'middle', 700, 'dominant-baseline="middle"') + txt(240, 446, 'W', 15, '#9ab2ba', 'middle', 700, 'letter-spacing="2"');
+      out += txt(122, 538, d.speed.toFixed(1), 36) + txt(122, 557, 'km/h', 12, '#9db3ba');
+      out += txt(358, 538, String(d.hr), 36) + txt(358, 557, 'bpm', 12, '#9db3ba');
+      out += `<g transform="translate(0 -16)">${auxRow()}</g>`;
+      return out;
+    }
     const dashboardVariants = {
       A: d => dashboardWithRails(d, segmentedRail),
-      B: d => dashboardWithRails(d, continuousRail)
+      B: d => dashboardWithRails(d, continuousRail),
+      C: dashboardVariantC
     };
     function render() {
       const d = reading(performance.now() / 1000);

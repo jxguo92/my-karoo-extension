@@ -80,7 +80,7 @@
     const variantNames = { C: '灯珠点亮', D: '跑车仪表' };
     const variantDescriptions = {
       C: '280° 外弧 28 颗灯珠（每个功率区 4 颗）、内弧 12 颗灯珠从低值端累计点亮到当前值；未点亮的灯珠保留暗淡的分区色，点亮部分带光晕。',
-      D: '模拟 inspiration.jpg 的跑车仪表：黑色表盘；外圈是标注分区边界瓦数的功率刻度，深色刻痕嵌在色带内；只有当前功率区整段点亮（外沿 100% 向内沿 50% 渐隐），其余分区为灰底加一条分区色外沿，当前区两端的瓦数高亮，白色短指针指向当前 3 秒功率；内圈是细轨道踏频填充，内侧只保留每 10 rpm 一道刻度、不标数字。仪表内改用方正字体，下方读数与其他方案一致。'
+      D: '模拟 inspiration.jpg 的跑车仪表：黑色表盘；外圈是标注分区边界瓦数的功率刻度，刻度线嵌在色带内；只有当前功率区整段点亮（外沿 100% 向内沿 50% 渐隐），其余分区为灰底加一条分区色外沿；刻度线和瓦数平时为灰色，当前区内的刻度线与两端瓦数变白，白色短指针指向当前 3 秒功率；内圈是细轨道踏频填充，内侧只保留每 10 rpm 一道刻度、不标数字。仪表内改用方正字体，下方读数与其他方案一致。'
     };
     const screen = document.getElementById('screen');
     const requestedVariant = new URLSearchParams(window.location.search).get('variant')?.toUpperCase();
@@ -231,7 +231,7 @@
     const circleGeometry = { cx: 240, cy: 322, outerRadius: 196, innerRadius: 144, start: 130, sweep: 280 };
     const circleText = {
       gearY: 258, gearSize: 30,
-      powerY: 378, powerSize: 96,
+      powerY: 364, powerSize: 96,
       speedY: 470, speedSize: 56
     };
     const lowerRowsTop = 558;
@@ -279,16 +279,17 @@
         rims += i === activeZone ? `<g filter="url(#dial-glow)">${rim}</g>` : rim;
       }
       out += `<g mask="url(#power-band-fade)">${zones}</g>` + rims;
+      const scaleColor = active => active ? '#f4f8f8' : '#7f8e96';
       for (let i = 0; i <= 7 * powerTicksPerZone; i++) {
         const major = i % powerTicksPerZone === 0;
+        const active = i >= activeZone * powerTicksPerZone && i <= (activeZone + 1) * powerTicksPerZone;
         const [x0, y0] = at(major ? bandInner : bandInner + bandWidth * .45, i / (7 * powerTicksPerZone));
         const [x1, y1] = at(bandOuter, i / (7 * powerTicksPerZone));
-        out += line(x0, y0, x1, y1, '#05080a', major ? 2.5 : 1.5, 'stroke-linecap="butt"');
+        out += line(x0, y0, x1, y1, scaleColor(active), major ? 2.5 : 1.5, 'stroke-linecap="butt"');
       }
       powerBounds.forEach((watts, i) => {
         const [x, y] = at(168, i / 7);
-        const bright = i === activeZone || i === activeZone + 1;
-        out += txt(x, y, watts, 16, bright ? '#f4f8f8' : '#7f8e96', 'middle', 700, 'dominant-baseline="central"', dialFont);
+        out += txt(x, y, watts, 16, scaleColor(i === activeZone || i === activeZone + 1), 'middle', 700, 'dominant-baseline="central"', dialFont);
       });
       const inner = circleTrack(cx, cy, 134, start, sweep);
       out += path(inner.d(0, inner.length), '#3b4249', 10, 'stroke-linecap="round"');

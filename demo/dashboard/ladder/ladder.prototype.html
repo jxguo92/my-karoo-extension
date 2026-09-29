@@ -30,7 +30,7 @@
   </style>
 </head>
 <body>
-  <!-- Three ladder dashboard variants, switchable via ?variant=A, ?variant=B, or ?variant=C on this prototype page. -->
+  <!-- Four ladder dashboard variants, switchable via ?variant=A, ?variant=B, ?variant=C, or ?variant=D on this prototype page. -->
   <div class="prototype-tag">THROWAWAY UI PROTOTYPE · LADDER</div>
   <main class="workspace">
     <div class="screen" id="screen" role="img" aria-label="Karoo 仪表盘原型，功率、心率和踏频自动变化"></div>
@@ -72,12 +72,14 @@
     const centerRailWidth = 16;
     const centerTickGap = 4;
     const railFillRatio = .6;
-    const variants = ['A', 'B', 'C'];
-    const variantNames = { A: '分区阶梯', B: '连续填充', C: '功率核心' };
+    const auxiliaryValueFontSize = 27.5;
+    const variants = ['A', 'B', 'C', 'D'];
+    const variantNames = { A: '分区阶梯', B: '连续填充', C: '功率核心', D: '功率核心 · 大字' };
     const variantDescriptions = {
       A: '两条宽分区轨道向下张开，中央是速度圆表。功率、心率和踏频按固定波形自动变化。',
       B: '左右轨道采用与速度圆弧一致的连续填充方式；填充色随当前功率和心率所属区域整体变化。',
-      C: '3 秒功率移至中央圆环并随功率区间变色；速度移至左侧，以固定青蓝色连续填充。'
+      C: '3 秒功率移至中央圆环并随功率区间变色；速度移至左侧，以固定青蓝色连续填充。',
+      D: '仪表整体上移 19 px，左右指示条及其箭头和读数向外移动 8 px，中央圆弧半径增至 115 px；下方五字段使用统一的大字与单位间距。'
     };
     const screen = document.getElementById('screen');
     const requestedVariant = new URLSearchParams(window.location.search).get('variant')?.toUpperCase();
@@ -223,19 +225,29 @@
       }
       return out;
     }
-    function auxRow() {
+    function auxRow(uniformFields = false) {
       const muted = '#94aeb6';
       const text = '#e9f3f2';
       let out = '';
       const topY = 606, valY = topY + 27;
       const topFields = [['AVG PWR', '198', 'W', 89], ['AVG SPD', '27.4', 'km/h', 240], ['AVG HR', '148', 'bpm', 391]];
-      topFields.forEach(([label, value, unit, x]) => {
+      topFields.forEach(([label, value, unit, x], index) => {
+        const unitOffset = value.length > 3 ? (uniformFields ? 43 : 38) : (uniformFields ? 32 : 29);
         out += txt(x, topY, label, 12.1, muted, 'middle', 700, 'letter-spacing="1"');
-        out += txt(x, valY, value, 27.5, text) + txt(x + (value.length > 3 ? 38 : 29), valY, unit, 11, muted, 'start');
+        out += txt(x, valY, value, auxiliaryValueFontSize, text, 'middle', 700, uniformFields ? `data-aux-value="${index}"` : '') +
+          txt(x + unitOffset, valY, unit, 11, muted, 'start', 700, uniformFields ? `data-aux-unit="${index}"` : '');
       });
       const lowY = 677;
-      out += txt(166, lowY, 'NP', 11, muted, 'middle', 700, 'letter-spacing="1"') + txt(166, lowY + 25, '214 W', 24.2, text);
-      out += txt(315, lowY, 'DIST', 11, muted, 'middle', 700, 'letter-spacing="1"') + txt(315, lowY + 25, '42.7 km', 24.2, text);
+      if (uniformFields) {
+        [['NP', '214', 'W', 166, 32], ['DIST', '42.7', 'km', 315, 43]].forEach(([label, value, unit, x, unitOffset], index) => {
+          out += txt(x, lowY, label, 12.1, muted, 'middle', 700, 'letter-spacing="1"');
+          out += txt(x, lowY + 27, value, auxiliaryValueFontSize, text, 'middle', 700, `data-aux-value="${index + 3}"`) +
+            txt(x + unitOffset, lowY + 27, unit, 11, muted, 'start', 700, `data-aux-unit="${index + 3}"`);
+        });
+      } else {
+        out += txt(166, lowY, 'NP', 11, muted, 'middle', 700, 'letter-spacing="1"') + txt(166, lowY + 25, '214 W', 24.2, text);
+        out += txt(315, lowY, 'DIST', 11, muted, 'middle', 700, 'letter-spacing="1"') + txt(315, lowY + 25, '42.7 km', 24.2, text);
+      }
       return out;
     }
     function dashboardWithRails(d, railRenderer) {
@@ -252,28 +264,53 @@
       out += `<g transform="translate(0 -16)">${auxRow()}</g>`;
       return out;
     }
-    function dashboardVariantC(d) {
-      let out = commonFrame('#111b22', '#42545d') + cadenceLights(d.cadence);
-      out += continuousRail('left', d.speed, speedBounds, '#7bdbce') + continuousRail('right', d.hr, hrBounds);
-      out += powerArc(240, 386, 111, d.power);
-      out += path('M 135 230 L 115 210 L 116 222', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
-      out += path('M 345 230 L 365 210 L 362 223', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"');
-      out += txt(240, 232, '3.6%', 22, '#e9f3f2');
-      out += txt(240, 330, '6/13', 20.88, '#9db9c0', 'middle', 700, 'letter-spacing="1"');
-      out += txt(240, 392, String(d.power), 64, '#f5faf8', 'middle', 700, 'dominant-baseline="middle"') + txt(240, 446, 'W', 15, '#9ab2ba', 'middle', 700, 'letter-spacing="2"');
-      out += txt(122, 538, d.speed.toFixed(1), 36) + txt(122, 557, 'km/h', 12, '#9db3ba');
-      out += txt(358, 538, String(d.hr), 36) + txt(358, 557, 'bpm', 12, '#9db3ba');
-      out += `<g transform="translate(0 -16)">${auxRow()}</g>`;
-      return out;
+    function dashboardVariantC(d, { upperShift = 0, lowerShift = -16, uniformFields = false, sideShift = 0, centerRadius = 111 } = {}) {
+      const moveSide = (markup, offset) => offset ? `<g transform="translate(${offset} 0)">${markup}</g>` : markup;
+      let upper = cadenceLights(d.cadence);
+      upper += moveSide(continuousRail('left', d.speed, speedBounds, '#7bdbce'), -sideShift) +
+        moveSide(continuousRail('right', d.hr, hrBounds), sideShift);
+      upper += powerArc(240, 386, centerRadius, d.power);
+      upper += moveSide(path('M 135 230 L 115 210 L 116 222', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"'), -sideShift);
+      upper += moveSide(path('M 345 230 L 365 210 L 362 223', '#e9f3f2', 2.5, 'none', 'stroke-linecap="round" stroke-linejoin="round"'), sideShift);
+      upper += txt(240, 232, '3.6%', 22, '#e9f3f2');
+      upper += txt(240, 330, '6/13', 20.88, '#9db9c0', 'middle', 700, 'letter-spacing="1"');
+      upper += txt(240, 392, String(d.power), 64, '#f5faf8', 'middle', 700, 'dominant-baseline="middle"') + txt(240, 446, 'W', 15, '#9ab2ba', 'middle', 700, 'letter-spacing="2"');
+      upper += moveSide(txt(122, 538, d.speed.toFixed(1), 36) + txt(122, 557, 'km/h', 12, '#9db3ba'), -sideShift);
+      upper += moveSide(txt(358, 538, String(d.hr), 36) + txt(358, 557, 'bpm', 12, '#9db3ba'), sideShift);
+      return commonFrame('#111b22', '#42545d') +
+        `<g transform="translate(0 ${upperShift})">${upper}</g>` +
+        `<g transform="translate(0 ${lowerShift})">${auxRow(uniformFields)}</g>`;
+    }
+    function dashboardVariantD(d) {
+      return dashboardVariantC(d, { upperShift: -19, lowerShift: -16, uniformFields: true, sideShift: 8, centerRadius: 115 })
+        .replace(/<text x="(\d+)" y="(\d+)"[^>]*>/g, (tag, x, y) => {
+          const isTopTime = y === '49' && (x === '25' || x === '455');
+          const isCurrentSpeedOrHr = y === '538' && (x === '122' || x === '358');
+          const isGearOrGrade = x === '240' && (y === '330' || y === '232');
+          const isLowerField = Number(y) >= 606;
+          const scale = isTopTime ? 1 : (isCurrentSpeedOrHr || isLowerField) ? 1.21 : 1.1;
+          return tag.replace(/font-size="([\d.]+)"/, (_, size) => {
+            const fontSize = isGearOrGrade ? auxiliaryValueFontSize * 1.1 : size * scale;
+            return `font-size="${Math.round(fontSize * 100) / 100}"`;
+          });
+        });
     }
     const dashboardVariants = {
       A: d => dashboardWithRails(d, segmentedRail),
       B: d => dashboardWithRails(d, continuousRail),
-      C: dashboardVariantC
+      C: dashboardVariantC,
+      D: dashboardVariantD
     };
     function render() {
       const d = reading(performance.now() / 1000);
       screen.innerHTML = `<svg viewBox="0 0 480 800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${dashboardVariants[activeVariant](d)}</svg>`;
+      if (activeVariant === 'D') {
+        screen.querySelectorAll('[data-aux-value]').forEach(value => {
+          const unit = screen.querySelector(`[data-aux-unit="${value.getAttribute('data-aux-value')}"]`);
+          const bounds = value.getBBox();
+          unit.setAttribute('x', bounds.x + bounds.width + 4);
+        });
+      }
       document.getElementById('power-state').textContent = `${d.power} W`;
       document.getElementById('hr-state').textContent = `${d.hr} bpm`;
       document.getElementById('cadence-state').textContent = `${d.cadence} rpm`;

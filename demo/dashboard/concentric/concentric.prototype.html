@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Concentric · Karoo Data Field UI prototype</title>
+  <style>
+    :root { color-scheme: dark; font-family: Arial, "Noto Sans SC", sans-serif; background: #10151c; color: #eaf0f2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    .workspace { width: min(100%, 1050px); min-height: 100vh; padding: 26px 24px; display: flex; align-items: center; justify-content: center; gap: 48px; }
+    .screen { width: min(480px, calc(100vw - 32px)); aspect-ratio: 3 / 5; flex: none; border-radius: 8px; overflow: hidden; box-shadow: 0 34px 80px #0009; }
+    .screen svg { display: block; width: 100%; height: 100%; }
+    .notes { max-width: 290px; align-self: center; }
+    .eyebrow { font-size: 11px; letter-spacing: .22em; font-weight: 800; color: #93b0b5; }
+    h1 { margin: 10px 0 16px; font-size: 29px; line-height: 1.15; }
+    .notes p { margin: 0 0 22px; color: #aabac0; line-height: 1.6; font-size: 14px; }
+    .state { border: 1px solid #40515b; border-radius: 12px; padding: 16px; background: #1b242d; }
+    .state-title { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: #c4d9d9; margin-bottom: 13px; }
+    .state-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 18px; font-size: 13px; color: #adbdc2; }
+    .state-grid strong { color: #fff; font-variant-numeric: tabular-nums; }
+    .state small { display: block; margin-top: 14px; color: #7d939d; line-height: 1.5; }
+    .prototype-tag { position: fixed; top: 12px; left: 16px; color: #82949d; font-size: 10px; letter-spacing: .15em; }
+    .prototype-switcher { position: fixed; z-index: 10; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 7px; border: 1px solid #63737c; border-radius: 999px; background: #080d11eb; box-shadow: 0 12px 32px #000a; backdrop-filter: blur(12px); }
+    .prototype-switcher button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: #25323a; color: #f4f8f8; font-size: 18px; cursor: pointer; }
+    .prototype-switcher button:hover { background: #3a4b55; }
+    .prototype-switcher span { min-width: 132px; color: #dce7e9; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-align: center; }
+    @media (max-width: 850px) { .workspace { flex-direction: column; gap: 22px; padding: 28px 16px; } .notes { max-width: min(480px, 100%); width: 100%; } .notes p { margin-bottom: 12px; } .state { display: none; } }
+    @media (max-width: 520px) { .prototype-tag { display: none; } .workspace { padding-top: 10px; } .screen { width: min(480px, calc(100vw - 20px)); } .notes h1 { font-size: 19px; margin: 6px 0; } .notes p { font-size: 12px; } }
+  </style>
+</head>
+<body>
+  <!-- Two concentric dashboard variants, switchable via ?variant=C or ?variant=D on this prototype page. -->
+  <div class="prototype-tag">THROWAWAY UI PROTOTYPE · CONCENTRIC</div>
+  <main class="workspace">
+    <div class="screen" id="screen" role="img" aria-label="Karoo 同心双弧仪表盘原型，功率、心率和踏频自动变化"></div>
+    <aside class="notes">
+      <div class="eyebrow">KAROO · 480 × 800</div>
+      <h1>同心双弧</h1>
+      <p id="variant-description"></p>
+      <div class="state" aria-live="off">
+        <div class="state-title">模拟实时状态</div>
+        <div class="state-grid">
+          <span>3 秒功率</span><strong id="power-state"></strong>
+          <span>心率</span><strong id="hr-state"></strong>
+          <span>踏频</span><strong id="cadence-state"></strong>
+          <span>速度</span><strong id="speed-state"></strong>
+        </div>
+        <small>踏频只由内弧表达；这里的数字用于观察模拟状态。风从左前方吹来（风力“小”），车头朝向 315°。</small>
+      </div>
+    </aside>
+  </main>
+  <nav class="prototype-switcher" aria-label="原型方案切换">
+    <button id="previous-variant" type="button" aria-label="上一套方案">←</button>
+    <span id="variant-label" aria-live="polite"></span>
+    <button id="next-variant" type="button" aria-label="下一套方案">→</button>
+  </nav>
+  <script>
+    const zoneColors = ['#55c99c', '#5cbce5', '#4280ea', '#ebcb52', '#ff8a5c', '#ed547a', '#a774f6'];
+    const hrZoneColorIndex = [0, 1, 2, 3, 5, 6];
+    const ftp = 200;
+    const powerBounds = [.41, .55, .75, .9, 1.05, 1.2, 1.5, 2].map(percent => Math.round(percent * ftp));
+    const restingHr = 50;
+    const maxHr = 190;
+    const hrr = maxHr - restingHr;
+    const hrBounds = [.41, .5, .6, .7, .8, .9, 1].map(percent => restingHr + percent * hrr);
+    const cadenceMin = 50;
+    const cadenceMax = 110;
+    const cadenceSegments = 12;
+    const cadenceColor = i => i < 6 ? '#edf2ed' : i < 10 ? '#69d697' : '#f36b65';
+    const bg = '#111b22';
+    const border = '#42545d';
+    const ink = '#eef5f5';
+    const muted = '#94aeb6';
+    const fixed = {
+      gear: '6/13', dist: '42.7', grade: '+4.8', avgSpeed: '27.4', avgHr: '148', avgPower: '198', np: '214',
+      windFromDegrees: 270, headingDegrees: 315, windLevelColor: '#4fd1b5'
+    };
+    const variants = ['C', 'D'];
+    const variantNames = { C: '灯珠点亮', D: '跑车仪表' };
+    const variantDescriptions = {
+      C: '280° 外弧 28 颗灯珠（每个功率区 4 颗）、内弧 12 颗灯珠从低值端累计点亮到当前值；未点亮的灯珠保留暗淡的分区色，点亮部分带光晕。',
+      D: '模拟 inspiration.jpg 的跑车仪表：黑色表盘；外圈是标注分区边界瓦数的功率刻度，深色刻痕嵌在色带内；只有当前功率区整段点亮（外沿 100% 向内沿 50% 渐隐），其余分区为灰底加一条分区色外沿，当前区两端的瓦数高亮，白色短指针指向当前 3 秒功率；内圈是细轨道踏频填充，内侧只保留每 10 rpm 一道刻度、不标数字。仪表内改用方正字体，下方读数与其他方案一致。'
+    };
+    const screen = document.getElementById('screen');
+    const requestedVariant = new URLSearchParams(window.location.search).get('variant')?.toUpperCase();
+    let activeVariant = variants.includes(requestedVariant) ? requestedVariant : 'C';
+
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const angle = d => d * Math.PI / 180;
+    const point = (cx, cy, r, d) => [cx + r * Math.cos(angle(d)), cy + r * Math.sin(angle(d))];
+    const f1 = n => n.toFixed(1);
+    const arc = (cx, cy, r, a0, a1) => {
+      const [x0, y0] = point(cx, cy, r, a0), [x1, y1] = point(cx, cy, r, a1);
+      return `M ${f1(x0)} ${f1(y0)} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${f1(x1)} ${f1(y1)}`;
+    };
+    const txt = (x, y, value, size, color = ink, anchor = 'middle', weight = 700, extra = '', family = 'Arial, sans-serif') =>
+      `<text x="${f1(x)}" y="${f1(y)}" fill="${color}" font-family="${family}" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}" ${extra}>${value}</text>`;
+    const line = (x1, y1, x2, y2, color, width = 1, extra = '') => `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" stroke="${color}" stroke-width="${width}" ${extra}/>`;
+    const rect = (x, y, w, h, fill, radius = 0, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="${fill}" ${extra}/>`;
+    const path = (d, stroke, width, extra = '') => `<path d="${d}" stroke="${stroke}" stroke-width="${width}" fill="none" ${extra}/>`;
+    const polygon = (points, fill, extra = '') => `<polygon points="${points.map(p => `${f1(p[0])},${f1(p[1])}`).join(' ')}" fill="${fill}" ${extra}/>`;
+    const measureContext = document.createElement('canvas').getContext('2d');
+    const textWidth = (value, size) => {
+      measureContext.font = `700 ${size}px Arial, sans-serif`;
+      return measureContext.measureText(value).width;
+    };
+
+    function steppedTriangle(elapsed, min, max, increment, phaseSteps = 0) {
+      const steps = (max - min) / increment;
+      const position = (Math.floor(elapsed / .85) + phaseSteps) % (steps * 2);
+      const step = position <= steps ? position : steps * 2 - position;
+      return min + step * increment;
+    }
+    function reading(elapsed) {
+      return {
+        power: steppedTriangle(elapsed, 80, 400, 20),
+        hr: steppedTriangle(elapsed, 100, 180, 5, 7),
+        cadence: Math.round(88 + 15 * Math.sin(elapsed / 7.4 + 1.2) + 4 * Math.sin(elapsed / 2.7)),
+        speed: 28.6
+      };
+    }
+    function zoneFraction(value, bounds) {
+      const v = clamp(value, bounds[0], bounds[bounds.length - 1]);
+      for (let i = 0; i < bounds.length - 1; i++) {
+        if (v <= bounds[i + 1]) return (i + (v - bounds[i]) / (bounds[i + 1] - bounds[i])) / (bounds.length - 1);
+      }
+      return 1;
+    }
+    function zoneIndex(value, bounds) {
+      const n = bounds.length - 1;
+      for (let i = 0; i < n; i++) if (value <= bounds[i + 1]) return i;
+      return n - 1;
+    }
+    const cadenceFraction = cadence => clamp((cadence - cadenceMin) / (cadenceMax - cadenceMin), 0, 1);
+    const cadenceIndex = cadence => clamp(Math.floor((cadence - 51) / 5), 0, cadenceSegments - 1);
+
+    // A track maps arc length s ∈ [0, length] to a point, its outward normal, and a sub-path.
+    function circleTrack(cx, cy, r, startDegrees, sweepDegrees) {
+      const length = r * angle(sweepDegrees);
+      const degreesAt = s => startDegrees + sweepDegrees * s / length;
+      return {
+        length,
+        at(s) {
+          const a = degreesAt(clamp(s, 0, length));
+          const [x, y] = point(cx, cy, r, a);
+          return { x, y, nx: Math.cos(angle(a)), ny: Math.sin(angle(a)) };
+        },
+        d(s0, s1) {
+          if (s1 - s0 < .01) {
+            const p = this.at(s0);
+            return `M ${f1(p.x)} ${f1(p.y)} L ${f1(p.x)} ${f1(p.y)}`;
+          }
+          return arc(cx, cy, r, degreesAt(s0), degreesAt(s1));
+        }
+      };
+    }
+    function lightCells(track, count, colorOf, lit, width, gap, groupSize = count, groupGap = gap) {
+      const gapBefore = i => (i % groupSize === 0 ? groupGap : gap) / 2;
+      let dim = '', glow = '';
+      for (let i = 0; i < count; i++) {
+        const s0 = track.length * i / count + gapBefore(i);
+        const s1 = track.length * (i + 1) / count - gapBefore(i + 1);
+        const cell = path(track.d(s0, s1), colorOf(i), width, `stroke-linecap="butt" opacity="${i < lit ? 1 : .16}"`);
+        if (i < lit) glow += cell; else dim += cell;
+      }
+      return dim + `<g filter="url(#cell-glow)">${glow}</g>`;
+    }
+
+    function frame() {
+      return rect(0, 0, 480, 800, bg, 8) +
+        rect(1, 1, 478, 798, 'none', 8, `stroke="${border}" stroke-width="2"`) +
+        line(0, 81, 480, 81, border) + line(0, 719, 480, 719, border) +
+        txt(25, 49, '01:24:36', 23, '#f4f7f8', 'start', 700, 'font-variant-numeric="tabular-nums"') +
+        txt(455, 49, '14:32', 23, '#f4f7f8', 'end', 700, 'font-variant-numeric="tabular-nums"');
+    }
+    function windArrow(cx, cy, towardDegrees, color) {
+      const tail = point(cx, cy, 17, towardDegrees + 180);
+      const neck = point(cx, cy, 4, towardDegrees);
+      const tip = point(cx, cy, 19, towardDegrees);
+      const wingA = point(neck[0], neck[1], 9, towardDegrees + 90);
+      const wingB = point(neck[0], neck[1], 9, towardDegrees - 90);
+      return line(tail[0], tail[1], neck[0], neck[1], color, 4.5, 'stroke-linecap="round"') + polygon([tip, wingA, wingB], color, 'stroke-linejoin="round"');
+    }
+    function compass(cx, cy, northDegrees) {
+      const north = point(cx, cy, 20, northDegrees);
+      const south = point(cx, cy, 20, northDegrees + 180);
+      const sideA = point(cx, cy, 7, northDegrees + 90);
+      const sideB = point(cx, cy, 7, northDegrees - 90);
+      const label = point(cx, cy, 32, northDegrees);
+      return polygon([north, sideA, sideB], '#ef5b5b') + polygon([south, sideA, sideB], '#7f929a') +
+        txt(label[0], label[1], 'N', 13, '#dfe9ea', 'middle', 700, 'dominant-baseline="central"');
+    }
+    function corners() {
+      const relativeWind = fixed.windFromDegrees + 180 - fixed.headingDegrees;
+      return windArrow(46, 128, relativeWind - 90, fixed.windLevelColor) + compass(430, 132, -90 - fixed.headingDegrees);
+    }
+    const stackedUnitSize = 21.8;
+    function stackedValue(x, valueY, value, valueSize, color, unit, family) {
+      const unitY = valueY + 6 + stackedUnitSize * .716;
+      return txt(x, valueY, value, valueSize, color, 'middle', 700, '', family) + txt(x, unitY, unit, stackedUnitSize, muted, 'middle', 700, '', family);
+    }
+    function hrColor(hr) {
+      return hr < hrBounds[0] ? ink : zoneColors[hrZoneColorIndex[zoneIndex(hr, hrBounds)]];
+    }
+    function centerReadouts(d, layout) {
+      const { gearY, gearSize, powerY, powerSize, speedY, speedSize } = layout;
+      return txt(240, gearY, fixed.gear, gearSize, '#d7e6e8', 'middle', 700, 'letter-spacing="1"') +
+        txt(240, powerY, String(d.power), powerSize, '#f7fbfa') +
+        stackedValue(240, speedY, f1(d.speed), speedSize, ink, 'km/h');
+    }
+    function field(x, labelY, label, value, unit, valueSize, unitSize, valueY = labelY + valueSize + 2) {
+      const gap = 4;
+      const valueWidth = textWidth(value, valueSize);
+      const left = x - (valueWidth + gap + textWidth(unit, unitSize)) / 2;
+      return txt(x, labelY, label, 14.6, muted, 'middle', 700, 'letter-spacing="1"') +
+        txt(left, valueY, value, valueSize, ink, 'start') +
+        txt(left + valueWidth + gap, valueY, unit, unitSize, muted, 'start');
+    }
+    function lowerRows(d, top) {
+      let out = '';
+      const firstRowValueY = top + 42;
+      [['DIST', fixed.dist, 'km', 100], ['GRADE', fixed.grade, '%', 380]]
+        .forEach(([label, value, unit, x]) => { out += field(x, top, label, value, unit, 40, 15, firstRowValueY); });
+      out += stackedValue(240, top + 4, String(d.hr), 56, hrColor(d.hr), 'bpm');
+      [['AVG SPD', fixed.avgSpeed, 'km/h', 64], ['AVG HR', fixed.avgHr, 'bpm', 182], ['AVG PWR', fixed.avgPower, 'W', 298], ['NOR PWR', fixed.np, 'W', 416]]
+        .forEach(([label, value, unit, x]) => { out += field(x, top + 88, label, value, unit, 33, 13.3); });
+      return out;
+    }
+
+    const circleGeometry = { cx: 240, cy: 322, outerRadius: 196, innerRadius: 144, start: 130, sweep: 280 };
+    const circleText = {
+      gearY: 258, gearSize: 30,
+      powerY: 378, powerSize: 96,
+      speedY: 470, speedSize: 56
+    };
+    const lowerRowsTop = 558;
+    const circleTracks = () => {
+      const { cx, cy, outerRadius, innerRadius, start, sweep } = circleGeometry;
+      return { outer: circleTrack(cx, cy, outerRadius, start, sweep), inner: circleTrack(cx, cy, innerRadius, start, sweep) };
+    };
+    const outerWidth = 24;
+    const innerWidth = 16;
+
+    function variantC(d) {
+      const { outer, inner } = circleTracks();
+      const powerCells = 28;
+      const litPower = Math.max(1, Math.ceil(zoneFraction(d.power, powerBounds) * powerCells - 1e-9));
+      const litCadence = cadenceIndex(d.cadence) + 1;
+      return frame() + corners() +
+        lightCells(outer, powerCells, i => zoneColors[Math.floor(i / 4)], litPower, outerWidth, 2.5, 4, 8) +
+        lightCells(inner, cadenceSegments, cadenceColor, litCadence, innerWidth, 4.5) +
+        centerReadouts(d, circleText) + lowerRows(d, lowerRowsTop);
+    }
+    const dialFont = "'DIN Alternate', Bahnschrift, 'Roboto Condensed', Arial, sans-serif";
+    const powerBandRadii = { inner: 191, outer: 207 };
+    function variantD(d) {
+      const { cx, cy, start, sweep } = circleGeometry;
+      const at = (r, fraction) => point(cx, cy, r, start + sweep * fraction);
+      const radial = (r0, r1, fraction, color, width) => {
+        const [x0, y0] = at(r0, fraction), [x1, y1] = at(r1, fraction);
+        return line(x0, y0, x1, y1, color, width, 'stroke-linecap="round"');
+      };
+      const powerTicksPerZone = 4;
+      const { inner: bandInner, outer: bandOuter } = powerBandRadii;
+      const bandWidth = bandOuter - bandInner;
+      const activeZone = zoneIndex(d.power, powerBounds);
+      const zoneSpan = (r, i) => {
+        const track = circleTrack(cx, cy, r, start, sweep);
+        return track.d(track.length * i / 7, track.length * (i + 1) / 7);
+      };
+      const bandMid = (bandInner + bandOuter) / 2;
+      let out = frame() + `<circle cx="${cx}" cy="${cy}" r="226" fill="url(#dial-face)"/>` + corners();
+      out += path(arc(cx, cy, bandMid, start, start + sweep), '#0b1115', bandWidth, 'stroke-linecap="butt"');
+      let zones = '', rims = '';
+      for (let i = 0; i < 7; i++) {
+        zones += path(zoneSpan(bandMid, i), i === activeZone ? zoneColors[i] : '#27313a', bandWidth, 'stroke-linecap="butt"');
+        const rim = path(zoneSpan(bandOuter - 2, i), zoneColors[i], 4, 'stroke-linecap="butt"');
+        rims += i === activeZone ? `<g filter="url(#dial-glow)">${rim}</g>` : rim;
+      }
+      out += `<g mask="url(#power-band-fade)">${zones}</g>` + rims;
+      for (let i = 0; i <= 7 * powerTicksPerZone; i++) {
+        const major = i % powerTicksPerZone === 0;
+        const [x0, y0] = at(major ? bandInner : bandInner + bandWidth * .45, i / (7 * powerTicksPerZone));
+        const [x1, y1] = at(bandOuter, i / (7 * powerTicksPerZone));
+        out += line(x0, y0, x1, y1, '#05080a', major ? 2.5 : 1.5, 'stroke-linecap="butt"');
+      }
+      powerBounds.forEach((watts, i) => {
+        const [x, y] = at(168, i / 7);
+        const bright = i === activeZone || i === activeZone + 1;
+        out += txt(x, y, watts, 16, bright ? '#f4f8f8' : '#7f8e96', 'middle', 700, 'dominant-baseline="central"', dialFont);
+      });
+      const inner = circleTrack(cx, cy, 134, start, sweep);
+      out += path(inner.d(0, inner.length), '#3b4249', 10, 'stroke-linecap="round"');
+      out += `<g filter="url(#dial-glow)">${path(inner.d(0, inner.length * cadenceFraction(d.cadence)), cadenceColor(cadenceIndex(d.cadence)), 10, 'stroke-linecap="round"')}</g>`;
+      for (let i = 0; i <= 6; i++) out += radial(120, 126, i / 6, '#eef3f4', 2);
+      const powerFraction = zoneFraction(d.power, powerBounds);
+      const needleWidth = 3;
+      out += `<g filter="url(#dial-glow)">${radial(146, bandOuter - needleWidth / 2, powerFraction, '#ffffff', needleWidth)}</g>`;
+      out += txt(240, circleText.gearY, fixed.gear, circleText.gearSize, '#d7e6e8', 'middle', 700, 'letter-spacing="1"', dialFont) +
+        txt(240, circleText.powerY, String(d.power), circleText.powerSize, '#f7fbfa', 'middle', 700, '', dialFont) +
+        stackedValue(240, circleText.speedY, f1(d.speed), circleText.speedSize, ink, 'km/h', dialFont);
+      return out + lowerRows(d, lowerRowsTop);
+    }
+    const dashboardVariants = { C: variantC, D: variantD };
+    const defs = '<defs>' +
+      '<filter id="cell-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+      // Straight needles can have a zero-height bounding box, so this glow uses a fixed user-space region.
+      '<filter id="dial-glow" filterUnits="userSpaceOnUse" x="0" y="0" width="480" height="800"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+      `<radialGradient id="dial-face" gradientUnits="userSpaceOnUse" cx="${circleGeometry.cx}" cy="${circleGeometry.cy}" r="226"><stop offset="0" stop-color="#000"/><stop offset=".78" stop-color="#030607"/><stop offset="1" stop-color="${bg}" stop-opacity="0"/></radialGradient>` +
+      `<radialGradient id="power-band-fade-gradient" gradientUnits="userSpaceOnUse" cx="${circleGeometry.cx}" cy="${circleGeometry.cy}" r="${powerBandRadii.outer}"><stop offset="${powerBandRadii.inner / powerBandRadii.outer}" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></radialGradient>` +
+      '<mask id="power-band-fade" maskUnits="userSpaceOnUse" x="0" y="0" width="480" height="800"><rect width="480" height="800" fill="url(#power-band-fade-gradient)"/></mask>' +
+      '</defs>';
+
+    function render() {
+      const d = reading(performance.now() / 1000);
+      screen.innerHTML = `<svg viewBox="0 0 480 800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${defs}${dashboardVariants[activeVariant](d)}</svg>`;
+      const hrZone = d.hr < hrBounds[0] ? 'Z1 以下' : `Z${zoneIndex(d.hr, hrBounds) + 1}`;
+      document.getElementById('power-state').textContent = `${d.power} W · Z${zoneIndex(d.power, powerBounds) + 1}`;
+      document.getElementById('hr-state').textContent = `${d.hr} bpm · ${hrZone}`;
+      document.getElementById('cadence-state').textContent = `${d.cadence} rpm · 第 ${cadenceIndex(d.cadence) + 1} 段`;
+      document.getElementById('speed-state').textContent = `${f1(d.speed)} km/h`;
+    }
+    function setVariant(nextVariant, updateUrl = true) {
+      activeVariant = nextVariant;
+      document.getElementById('variant-label').textContent = `${activeVariant} — ${variantNames[activeVariant]}`;
+      document.getElementById('variant-description').textContent = variantDescriptions[activeVariant];
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('variant', activeVariant);
+        window.history.replaceState(null, '', url);
+      }
+      render();
+    }
+    function cycleVariant(direction) {
+      const currentIndex = variants.indexOf(activeVariant);
+      setVariant(variants[(currentIndex + direction + variants.length) % variants.length]);
+    }
+    document.getElementById('previous-variant').addEventListener('click', () => cycleVariant(-1));
+    document.getElementById('next-variant').addEventListener('click', () => cycleVariant(1));
+    window.addEventListener('keydown', event => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.matches('input, textarea, [contenteditable]')) return;
+      if (event.key === 'ArrowLeft') cycleVariant(-1);
+      if (event.key === 'ArrowRight') cycleVariant(1);
+    });
+    setVariant(activeVariant, false);
+    setInterval(render, 850);
+  </script>
+</body>
+</html>

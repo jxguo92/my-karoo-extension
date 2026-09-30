@@ -22,4 +22,10 @@
         displayName="@string/climber_field_2_name"
         graphical="true"
         icon="@drawable/ic_extension" />
+    <DataType
+        typeId="concentric-dashboard"
+        description="@string/concentric_dashboard_description"
+        displayName="@string/concentric_dashboard_name"
+        graphical="true"
+        icon="@drawable/ic_extension" />
 </ExtensionInfo>

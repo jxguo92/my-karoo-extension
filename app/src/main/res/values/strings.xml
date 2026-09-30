@@ -8,4 +8,6 @@
     <string name="climber_field_1_description">Distance to summit, percent FTP, and elevation remaining</string>
     <string name="climber_field_2_name">Climber Field 2</string>
     <string name="climber_field_2_description">Heart rate, cadence, and rear cog teeth</string>
+    <string name="concentric_dashboard_name">Concentric Dashboard</string>
+    <string name="concentric_dashboard_description">Full-page power, cadence, heart rate and ride dashboard</string>
 </resources>

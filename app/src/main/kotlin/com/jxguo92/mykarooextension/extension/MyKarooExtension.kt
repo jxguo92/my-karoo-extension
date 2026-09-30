@@ -3,11 +3,14 @@ package com.jxguo92.mykarooextension.extension
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.extension.KarooExtension
 
+import kotlinx.coroutines.SupervisorJob
+
 class MyKarooExtension : KarooExtension(EXTENSION_ID, EXTENSION_VERSION) {
+    private val extensionJob = SupervisorJob()
     private val karooSystem by lazy { KarooSystemService(this) }
 
     override val types by lazy {
-        DataFieldRegistry.create(karooSystem, extension)
+        DataFieldRegistry.create(karooSystem, extension, this, extensionJob)
     }
 
     override fun onCreate() {
@@ -16,6 +19,7 @@ class MyKarooExtension : KarooExtension(EXTENSION_ID, EXTENSION_VERSION) {
     }
 
     override fun onDestroy() {
+        extensionJob.cancel()
         karooSystem.disconnect()
         super.onDestroy()
     }

@@ -37,6 +37,7 @@ android {
         applicationId = "com.jxguo92.mykarooextension"
         minSdk = 23
         targetSdk = 34
+        testInstrumentationRunner = "com.jxguo92.mykarooextension.feature.datafield.concentricdashboard.ConcentricRenderInstrumentation"
         versionCode = 1
         versionName = "0.1.0"
 

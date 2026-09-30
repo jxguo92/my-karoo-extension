@@ -1,6 +1,6 @@
 # Concentric Dashboard 开发计划
 
-状态：Q1–Q7 已确认，开发计划已生成；尚未开始功能实现。
+状态：功能与测试已实现；Android API 35 模拟器渲染验证通过，预览产物见 `demo/dashboard/concentric/validation/`。Karoo 真机验收待执行。
 
 ## 目标与已确认范围
 

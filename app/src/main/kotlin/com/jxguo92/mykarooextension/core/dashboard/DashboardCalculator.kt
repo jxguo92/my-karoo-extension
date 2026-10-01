@@ -1,4 +1,4 @@
-package com.jxguo92.mykarooextension.feature.datafield.concentricdashboard
+package com.jxguo92.mykarooextension.core.dashboard
 
 import kotlin.math.floor
 
@@ -6,7 +6,7 @@ import kotlin.math.floor
 data class PowerPosition(val zone: Int, val fraction: Double)
 data class WindIndicator(val angle: Int, val level: Int)
 
-object ConcentricCalculator {
+object DashboardCalculator {
     fun power(watts: Double?, ftp: Double?): PowerPosition? {
         if (nonNegative(watts) == null || positive(ftp) == null) return null
         val ratio = (watts!! / ftp!!).coerceIn(.41, 2.0)

@@ -28,4 +28,10 @@
         displayName="@string/concentric_dashboard_name"
         graphical="true"
         icon="@drawable/ic_extension" />
+    <DataType
+        typeId="ladder-full"
+        description="@string/ladder_dashboard_description"
+        displayName="@string/ladder_dashboard_name"
+        graphical="true"
+        icon="@drawable/ic_extension" />
 </ExtensionInfo>

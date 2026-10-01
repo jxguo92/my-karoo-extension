@@ -10,4 +10,6 @@
     <string name="climber_field_2_description">Heart rate, cadence, and rear cog teeth</string>
     <string name="concentric_dashboard_name">Concentric Dashboard</string>
     <string name="concentric_dashboard_description">Full-page power, cadence, heart rate and ride dashboard</string>
+    <string name="ladder_dashboard_name">Ladder Dashboard</string>
+    <string name="ladder_dashboard_description">Full-page power core, speed, heart rate and ride dashboard</string>
 </resources>

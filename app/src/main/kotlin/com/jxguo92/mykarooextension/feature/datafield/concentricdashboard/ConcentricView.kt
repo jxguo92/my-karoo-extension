@@ -1,5 +1,9 @@
 package com.jxguo92.mykarooextension.feature.datafield.concentricdashboard
 
+import com.jxguo92.mykarooextension.core.dashboard.*
+
+import com.jxguo92.mykarooextension.core.ui.DashboardPalette
+import com.jxguo92.mykarooextension.core.ui.DashboardDirections
 import android.content.Context
 import android.graphics.*
 import android.widget.RemoteViews
@@ -21,39 +25,20 @@ object ConcentricView {
         if (frame.display == null) return bitmap
         val canvas = Canvas(bitmap)
         canvas.scale(width / 480f, height / 638f)
-        DashboardPainter(canvas, Palette(frame.night)).draw(frame.display)
+        DashboardPainter(canvas, DashboardPalette(frame.night)).draw(frame.display)
         return bitmap
     }
 }
 
-private class Palette(val night: Boolean) {
-    fun color(dark: String, light: String) = Color.parseColor(if (night) dark else light)
-    val background = color("#111b22", "#e8edef")
-    val ink = color("#eef5f5", "#10181c")
-    val muted = color("#94aeb6", "#5b6f78")
-    val gear = color("#d7e6e8", "#3a4a52")
-    val power = color("#f7fbfa", "#0b1216")
-    val zones = (if (night) listOf("#55c99c", "#5cbce5", "#4280ea", "#ebcb52", "#ff8a5c", "#ed547a", "#a774f6")
-        else listOf("#16a076", "#1790c8", "#2c63d6", "#c29100", "#e45f1f", "#d4305c", "#8450e0")).map(Color::parseColor)
-    val cadence = (if (night) listOf("#edf2ed", "#69d697", "#f36b65") else listOf("#2c363d", "#1c9a55", "#d93a36")).map(Color::parseColor)
-    val winds = (if (night) listOf("#edf2ed", "#4fd1b5", "#ebcb52", "#f36b65") else listOf("#5b6f78", "#0f9a83", "#a67c00", "#d93a36")).map(Color::parseColor)
-    val idle = color("#27313a", "#d5dce0")
-    val tick = color("#7f8e96", "#6c7b83")
-    val activeTick = color("#f4f8f8", "#10181c")
-    val track = color("#3b4249", "#d2d9dd")
-    val cadenceTick = color("#eef3f4", "#44525a")
-    val needle = color("#ffffff", "#0b1216")
-}
-
 /** Coordinates are the prototype's middle field, translated upward by its 81px header. */
-private class DashboardPainter(private val canvas: Canvas, private val theme: Palette) {
+private class DashboardPainter(private val canvas: Canvas, private val theme: DashboardPalette) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val condensed = Typeface.create("sans-serif-condensed", Typeface.BOLD)
     private val sans = Typeface.create("sans-serif", Typeface.BOLD)
     private val cx = 240f
     private val cy = 241f
 
-    fun draw(d: ConcentricDisplay) {
+    fun draw(d: DashboardDisplay) {
         canvas.drawColor(theme.background)
         paint.style = Paint.Style.FILL
         paint.shader = RadialGradient(cx, cy, 226f,
@@ -87,8 +72,8 @@ private class DashboardPainter(private val canvas: Canvas, private val theme: Pa
         d.powerPosition?.let { position -> glow(true, theme.needle) {
             radial(146f, 205.5f, position.fraction.toFloat(), theme.needle, 3f)
         } }
-        d.wind?.let { wind -> wind(wind) }
-        d.northAngle?.let(::compass)
+        d.wind?.let { DashboardDirections(canvas).wind(46f, 47f, it, theme.winds[it.level]) }
+        d.northAngle?.let { DashboardDirections(canvas).compass(430f, 51f, it, theme.color("#ef5b5b", "#d93434"), theme.color("#7f929a", "#a3b0b6"), theme.color("#dfe9ea", "#2f3d44")) }
         text(d.gear, 240f, 177f, 30f, theme.gear, 190f, condensed)
         text(d.power, 240f, 283f, 96f, theme.power, 220f, condensed)
         stacked(d.speed, "km/h", 240f, 389f, 56f, theme.ink, 210f, condensed)
@@ -149,32 +134,5 @@ private class DashboardPainter(private val canvas: Canvas, private val theme: Pa
         val left = x - (valueWidth + 4 + unitWidth) / 2
         text(value, left + valueWidth / 2, valueY, size, theme.ink, valueWidth)
         text(unit, left + valueWidth + 4 + unitWidth / 2, valueY, unitSize, theme.muted, unitWidth)
-    }
-    private fun polygon(points: List<PointF>, color: Int) {
-        val path = Path().apply {
-            moveTo(points.first().x, points.first().y)
-            points.drop(1).forEach { lineTo(it.x, it.y) }
-            close()
-        }
-        paint.style = Paint.Style.FILL; paint.color = color
-        canvas.drawPath(path, paint)
-    }
-    private fun wind(wind: WindIndicator) {
-        val angle = wind.angle - 90f
-        val tail = point(46f, 47f, 17f, angle + 180)
-        val neck = point(46f, 47f, 4f, angle)
-        val tip = point(46f, 47f, 19f, angle)
-        val color = theme.winds[wind.level]
-        line(tail, neck, color, 4.5f)
-        polygon(listOf(tip, point(neck.x, neck.y, 9f, angle + 90), point(neck.x, neck.y, 9f, angle - 90)), color)
-    }
-    private fun compass(north: Int) {
-        val angle = north - 90f
-        val a = point(430f, 51f, 7f, angle + 90)
-        val b = point(430f, 51f, 7f, angle - 90)
-        polygon(listOf(point(430f, 51f, 20f, angle), a, b), theme.color("#ef5b5b", "#d93434"))
-        polygon(listOf(point(430f, 51f, 20f, angle + 180), a, b), theme.color("#7f929a", "#a3b0b6"))
-        val label = point(430f, 51f, 32f, angle)
-        text("N", label.x, label.y + 4f, 13f, theme.color("#dfe9ea", "#2f3d44"), 18f)
     }
 }

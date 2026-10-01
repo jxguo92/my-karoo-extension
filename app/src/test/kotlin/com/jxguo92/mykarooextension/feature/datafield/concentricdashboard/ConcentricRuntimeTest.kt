@@ -1,5 +1,7 @@
 package com.jxguo92.mykarooextension.feature.datafield.concentricdashboard
 
+import com.jxguo92.mykarooextension.core.dashboard.*
+
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.*
 import org.junit.Assert.*
@@ -26,7 +28,7 @@ class ConcentricRuntimeTest {
         var subscriptions = 0
         var night = false
         val frames = mutableListOf<ConcentricFrame>()
-        val runtime = ConcentricRuntime(backgroundScope, true, true, { night }, { ConcentricDisplay() },
+        val runtime = ConcentricRuntime(backgroundScope, true, true, { night }, { DashboardDisplay() },
             { subscriptions++ }, frames::add, {})
         runtime.start()
         assertEquals(ConcentricPreview.display, frames.single().display)
@@ -48,7 +50,7 @@ class ConcentricRuntimeTest {
     }
 
     @Test fun `live placeholder is immediate updates limited to one Hz and failed submissions retry`() = runTest {
-        var current = ConcentricDisplay(power = "1")
+        var current = DashboardDisplay(power = "1")
         var subscriptions = 0
         var failures = 0
         val frames = mutableListOf<ConcentricFrame>()

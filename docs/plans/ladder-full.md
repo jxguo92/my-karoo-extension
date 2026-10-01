@@ -1,8 +1,18 @@
-# Ladder Full 整页仪表盘字段实施计划
+# Ladder Dashboard 整页仪表盘字段实施计划
 
 ## Summary
 
-新增图形 Data Field `ladder-full` / `Ladder Full`：独占整页（5 行 2 列）的汽车仪表盘风格组合字段，视觉以
+实现时按用户要求将显示名称统一为 **Ladder Dashboard**，保留契约 ID `ladder-full`。Concentric Dashboard 已实现后，本计划的复用方式调整如下：
+
+- `core/dashboard/DashboardState.kt`、`DashboardCalculator.kt`：共用传感器归约、文字格式、功率分区及风向/朝向规则；LadderState.kt 生成专属 LadderFrame。
+- `core/karoo/DashboardSubscriptions.kt`、`DashboardLocation.kt`：共用 SDK 订阅、单位转换和 LOCATION 速度兼容；注册构造无需再次修改 Context 参数。
+- `core/weather/DashboardWeather.kt`、`DashboardWeatherPolicy.kt`：共用每视图缓存、单请求保护、纯刷新策略和单调时间；DashboardWeatherUpdates 共用一秒检查循环，不另建 LadderWeatherUpdates。
+- `core/ui/DashboardDirections.kt`：两字段共用风箭头和双色指北针形状，各自提供位置与配色；DashboardPalette 共享分区/踏频/风力配色。
+- LadderRuntime.kt 立即首帧，此后每秒读取最新快照、仅提交变化帧，失败帧可重试；与 `distinctUntilChanged + sample` 的显示节流目标一致，也保留无变化时的失败恢复。
+- 专有类使用 Ladder 前缀，目录为 `feature/datafield/ladderdashboard/`，布局资源为 `ladder_dashboard_view.xml`。
+- 下文保留原计划的职责划分；LadderWeatherPolicy/Updates 文件职责由上述共享天气实现承担。
+
+新增图形 Data Field `ladder-full` / `Ladder Dashboard`：独占整页（5 行 2 列）的汽车仪表盘风格组合字段，视觉以
 [`demo/dashboard/ladder/ladder.prototype.html`](../../demo/dashboard/ladder/ladder.prototype.html?variant=D) 的方案 D（功率核心 · 大字）为准，
 规则以 [`demo/dashboard/context.md`](../../demo/dashboard/context.md) 为准；本计划或原型与 `context.md` 冲突时，以 `context.md` 为准。
 布局仅实现本次指定的方案 D；`context.md` 中速度圆弧的范围与刻度规则应用于方案 D 的左侧速度指示条。
@@ -12,7 +22,7 @@
 - 固定使用**方案 D**：中央为 3 秒功率圆弧，左侧为速度指示条，右侧为心率指示条；不提供点击切换或布局持久化。
 - 左上角按 `context.md` 绘制按**风力级别**着色的**相对风向**箭头；右上角绘制指向真北的**指北针**。
 - 不在整页位置时什么都不显示。
-- 保持单 `app` 模块；业务代码全部位于 `feature/datafield/ladderfull/`。
+- 保持单 `app` 模块；Ladder 专有业务代码位于 `feature/datafield/ladderdashboard/`。
 
 ## 已确认决策
 
@@ -57,26 +67,26 @@
 （`ConnectivityWifiStatus` + `UrlConnectionHttpGet` + `KarooHttpGet(KarooSystemHttpChannel)`），凭据来自
 `QWeatherConfig.fromBuildConfig()`。
 
-### 切片文件：`feature/datafield/ladderfull/`
+### 切片文件：`feature/datafield/ladderdashboard/`
 
-- `LadderFullDataField.kt`：唯一的 SDK 适配层。
+- `LadderDataField.kt`：唯一的 SDK 适配层。
   - 不覆写 `startStream`（SDK 默认实现）。
   - `startView`：发送 `UpdateGraphicConfig(showHeader = false)`；非整页时提交一次空白视图并返回。
   - 整页且非预览时：在字段自己的 `SupervisorJob` scope 中收集各数据流和天气更新，归约为状态，
     经 `distinctUntilChanged + sample(1 s)` 渲染；首帧立即以空状态绘制。
   - 每帧新建 `RemoteViews`；`updateView` 用 try/catch 包住，失败只记录日志。
   - `emitter.setCancellable` 取消 scope，移除全部 consumer 与天气循环。
-- `LadderFullState.kt`：不可变状态与纯 reducer（传感器值、分区参数、骑行状态、车头朝向、天气），
+- `LadderState.kt`：不可变状态与纯 reducer（传感器值、分区参数、骑行状态、车头朝向、天气），
   `frame()` 输出与绘制无关的显示模型（文字、填充比例、分区色序号、灯珠数、箭头角与级别、可见性）。
-- `LadderFullCalculator.kt`：纯计算。
+- `LadderCalculator.kt`：纯计算。
   - 功率/心率分区边界、区内线性插值的填充比例（沿用 HTML 的 `zoneFraction`）与分区色映射（6 区跳过第 5 色）。
   - 速度填充比例（0–60 km/h）、踏频点亮颗数（`floor((rpm − 51) / 5) + 1`，钳制到 1–12）。
   - 风力级别、静风与无效风数据判定、相对风向角、指北针角、10° 取整、车头朝向保持规则。
-- `LadderFullWeatherPolicy.kt`：纯规则，输入当前时间、位置、上次成功时间与位置、上次失败时间，输出“是否请求”
+- `LadderWeatherPolicy.kt`：纯规则，输入当前时间、位置、上次成功时间与位置、上次失败时间，输出“是否请求”
   和“是否过期”；距离用大圆公式。
-- `LadderFullWeatherUpdates.kt`：用注入的 `WeatherProvider`、单调时钟和位置 Flow 按策略循环请求，输出最新天气快照；
+- `LadderWeatherUpdates.kt`：用注入的 `WeatherProvider`、单调时钟和位置 Flow 按策略循环请求，输出最新天气快照；
   同一时刻最多一个请求在途。
-- `LadderFullRenderer.kt`：Android Canvas 绘制。
+- `LadderRenderer.kt`：Android Canvas 绘制。
   - 设计坐标系为 480 × 638（HTML 中 y ∈ [81, 719] 的字段区平移到原点），按 `viewSize` 等比缩放并居中，
     其余区域填背景色；`viewSize` 非正时按 480 × 638 绘制。
   - 每个视图复用一张 ARGB_8888 位图（`onNext` 为同步 binder 调用，提交返回后可重绘）。
@@ -88,17 +98,17 @@
     下方五字段数值统一 33.28 px、标签 14.64 px、单位 13.31 px；其余字号、颜色和刻度按方案 D。
     下方单位放在实际测量的数值文字右边缘外 4 px，不使用固定字符数估算间距。
   - 风向与指北针的形状、方向、着色及隐藏规则按 `context.md`，覆盖原型中的静态箭头。
-- `LadderFullPreview.kt`：固定预览状态。
+- `LadderPreview.kt`：固定预览状态。
 
-天气刷新目前只有 Ladder Full 一个调用者，按 `AGENTS.md` 暂不移入 `core/`。
+天气刷新现在由 Concentric Dashboard 与 Ladder Dashboard 两个调用者使用，按 `AGENTS.md` 提取至 `core/weather/` 复用。
 
 ### 资源、注册与文档
 
-- `res/layout/ladder_full_view.xml`：根 `FrameLayout` + 全尺寸 `ImageView`；空白状态使用同一布局但不设位图。
+- `res/layout/ladder_dashboard_view.xml`：根 `FrameLayout` + 全尺寸 `ImageView`；空白状态使用同一布局但不设位图。
 - `res/xml/extension_info.xml`：新增 `ladder-full`，`graphical="true"`，复用 `ic_extension`；`strings.xml` 增加名称与描述。
-- `DataFieldRegistry`：追加 `LadderFullDataField`，顺序为 `rear-cog-teeth`、`climber-field-1`、`climber-field-2`、`ladder-full`；
+- `DataFieldRegistry`：追加 `LadderDataField`，顺序为 `rear-cog-teeth`、`climber-field-1`、`climber-field-2`、`concentric-dashboard`、`ladder-full`；
   `create` 增加 `Context` 参数以构造网络状态，`MyKarooExtension` 传入自身。
-- `docs/data-fields.md`：新增 Ladder Full 小节——数据源、整页条件、固定方案 D、固定公制例外、风与指北针规则（含静风隐藏）、
+- `docs/data-fields.md`：新增 Ladder Dashboard 小节——数据源、整页条件、固定方案 D、固定公制例外、风与指北针规则（含静风隐藏）、
   天气刷新/过期、缺失与骑行状态、预览、未显示和风归因、真机待验证项。
 
 ### 预览数据
@@ -131,7 +141,7 @@ AVG PWR 198 W、AVG SPD 27.4 km/h、AVG HR 148 bpm、NP 214 W、DIST 42.7 km；F
 
 ## New Karoo 真机验收
 
-- 字段选择器能发现 `Ladder Full`；放在单字段整页时显示完整仪表盘，放在其他尺寸时完全空白。
+- 字段选择器能发现 `Ladder Dashboard`；放在单字段整页时显示完整仪表盘，放在其他尺寸时完全空白。
 - Debug 日志记录首次 `gridSize`/`viewSize`/`preview`，确认整页确为 `(60, 60)`、隐藏 header 后的实际像素，以及编辑器预览的尺寸。
 - 正式运行、编辑器预览与重启后均显示方案 D；核对上移/外移位置、圆弧半径、大字与单位间距，确保无重叠或裁切。
 - 静止、低速、转弯时 `LOC_BEARING` 的表现，确认 5 km/h 门限与 10° 取整下箭头和指北针不乱跳；实测箭头方向与真实风向一致。
@@ -144,5 +154,5 @@ AVG PWR 198 W、AVG SPD 27.4 km/h、AVG HR 148 bpm、NP 214 W、DIST 42.7 km；F
 ## Assumptions
 
 - `LOC_BEARING` 是以真北为基准的 GPS 行进方向（度）；和风的风向为气象来向（度，真北）。
-- 实现基于工作区中尚未提交的 `NetworkAwareHttpGet`/`KarooHttpGet` 改动。
+- 实现基于已存在的 `NetworkAwareHttpGet`/`KarooHttpGet` 改动。
 - 不增加设置页、英制支持、日间配色、风速数字、和风归因、其他布局、点击切换或布局持久化。

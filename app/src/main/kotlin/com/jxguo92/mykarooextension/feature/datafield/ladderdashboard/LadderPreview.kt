@@ -1,0 +1,17 @@
+package com.jxguo92.mykarooextension.feature.datafield.ladderdashboard
+
+import com.jxguo92.mykarooextension.core.dashboard.*
+
+object LadderPreview {
+    val state = DashboardState(
+        readings = mapOf(
+            Metric.POWER to 245.0, Metric.CADENCE to 88.0, Metric.HEART_RATE to 156.0,
+            Metric.SPEED to 28.6, Metric.GRADE to 3.6, Metric.DISTANCE to 42.7,
+            Metric.AVG_POWER to 198.0, Metric.AVG_SPEED to 27.4, Metric.AVG_HR to 148.0,
+            Metric.NORMALIZED_POWER to 214.0,
+        ),
+        gear = "6/13", heading = 315.0, ftp = 200.0, maximumHr = 190.0, restingHr = 50.0,
+    )
+    val wind = DashboardCalculator.wind(315.0, 270.0, 4.0)
+    val frame = state.ladderFrame(wind)
+}

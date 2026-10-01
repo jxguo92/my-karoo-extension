@@ -1,12 +1,14 @@
 package com.jxguo92.mykarooextension.feature.datafield.concentricdashboard
 
+import com.jxguo92.mykarooextension.core.dashboard.*
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-data class ConcentricFrame(val display: ConcentricDisplay?, val night: Boolean)
+data class ConcentricFrame(val display: DashboardDisplay?, val night: Boolean)
 
 /** Presentation boundary: the only place that submits frames, including theme-only changes. */
 class ConcentricRuntime(
@@ -14,7 +16,7 @@ class ConcentricRuntime(
     private val fullPage: Boolean,
     private val preview: Boolean,
     private val night: () -> Boolean,
-    private val latest: () -> ConcentricDisplay,
+    private val latest: () -> DashboardDisplay,
     private val subscribe: () -> Unit,
     private val submit: (ConcentricFrame) -> Unit,
     private val onFailure: () -> Unit,
@@ -32,7 +34,7 @@ class ConcentricRuntime(
                 onFailure()
             }
         }
-        publish(ConcentricFrame(if (!fullPage) null else if (preview) ConcentricPreview.display else ConcentricDisplay(), night()))
+        publish(ConcentricFrame(if (!fullPage) null else if (preview) ConcentricPreview.display else DashboardDisplay(), night()))
         if (!fullPage && submitted != null) return
         if (fullPage && !preview && scope.isActive) subscribe()
         scope.launch {

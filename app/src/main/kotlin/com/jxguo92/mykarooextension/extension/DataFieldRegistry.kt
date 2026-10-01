@@ -17,6 +17,7 @@ import com.jxguo92.mykarooextension.core.karoo.KarooSystemHttpChannel
 import com.jxguo92.mykarooextension.core.weather.qweather.QWeatherConfig
 import com.jxguo92.mykarooextension.core.weather.qweather.QWeatherProvider
 import com.jxguo92.mykarooextension.feature.datafield.concentricdashboard.ConcentricDataField
+import com.jxguo92.mykarooextension.feature.datafield.ladderdashboard.LadderDataField
 import kotlinx.coroutines.Job
 
 object DataFieldRegistry {
@@ -25,6 +26,7 @@ object DataFieldRegistry {
         ClimberField1DataField.TYPE_ID,
         ClimberField2DataField.TYPE_ID,
         ConcentricDataField.TYPE_ID,
+        LadderDataField.TYPE_ID,
     )
 
     fun create(
@@ -45,6 +47,7 @@ object DataFieldRegistry {
             ClimberField1DataField(flows, extensionId),
             ClimberField2DataField(flows, extensionId),
             ConcentricDataField(flows, weather, parent, extensionId),
+            LadderDataField(flows, weather, parent, extensionId),
         )
     }
 }

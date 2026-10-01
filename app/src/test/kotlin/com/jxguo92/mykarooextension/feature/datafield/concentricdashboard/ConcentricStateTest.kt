@@ -1,11 +1,13 @@
 package com.jxguo92.mykarooextension.feature.datafield.concentricdashboard
 
+import com.jxguo92.mykarooextension.core.dashboard.*
+
 import org.junit.Assert.*
 import org.junit.Test
 
 class ConcentricStateTest {
     @Test fun `idle clears readings and heading and ignores readings until resumed`() {
-        val active = ConcentricState().onValue(Metric.POWER, 245.0).onValue(Metric.SPEED, 5.0)
+        val active = DashboardState().onValue(Metric.POWER, 245.0).onValue(Metric.SPEED, 5.0)
             .onLocation(315.0, null)
         assertEquals("245", active.display().power)
         val idle = active.onRide(false).onValue(Metric.POWER, 200.0).onLocation(90.0, 20.0)
@@ -17,7 +19,7 @@ class ConcentricStateTest {
     }
 
     @Test fun `heading prefers sample speed then last valid speed and resets at idle`() {
-        val state = ConcentricState().onValue(Metric.SPEED, 20.0).onValue(Metric.SPEED, null)
+        val state = DashboardState().onValue(Metric.SPEED, 20.0).onValue(Metric.SPEED, null)
         val moving = state.onLocation(355.0, null)
         assertEquals(355.0, moving.heading!!, 0.0)
         assertEquals(10, moving.display().northAngle)

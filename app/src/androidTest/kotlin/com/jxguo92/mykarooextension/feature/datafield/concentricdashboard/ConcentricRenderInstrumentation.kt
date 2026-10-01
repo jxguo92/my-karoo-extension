@@ -1,10 +1,13 @@
 package com.jxguo92.mykarooextension.feature.datafield.concentricdashboard
 
+import com.jxguo92.mykarooextension.core.dashboard.*
+
 import android.app.Instrumentation
 import android.app.Activity
 import android.graphics.Bitmap
 import android.os.Bundle
 import java.io.File
+import com.jxguo92.mykarooextension.feature.datafield.ladderdashboard.LadderRenderChecks
 
 /** Runs the production Android Canvas renderer and exports deterministic visual fixtures. */
 class ConcentricRenderInstrumentation : Instrumentation() {
@@ -20,7 +23,7 @@ class ConcentricRenderInstrumentation : Instrumentation() {
             val long = normal.copy(power = "123456789", speed = "12345.6", heartRate = "123456", gear = "123/456",
                 distance = "123456.7", grade = "+12345.6", averageSpeed = "12345.6", averageHr = "123456",
                 averagePower = "123456789", normalizedPower = "123456789")
-            for ((name, display) in listOf("preview" to normal, "missing" to ConcentricDisplay(), "long" to long)) {
+            for ((name, display) in listOf("preview" to normal, "missing" to DashboardDisplay(), "long" to long)) {
                 for (night in listOf(false, true)) {
                     val frame = ConcentricFrame(display, night)
                     val bitmap = ConcentricView.bitmap(480 to 638, frame)
@@ -42,7 +45,8 @@ class ConcentricRenderInstrumentation : Instrumentation() {
             }
             val blank = ConcentricView.bitmap(480 to 638, ConcentricFrame(null, false))
             check(blank.getPixel(240, 319) == 0)
-            finish(Activity.RESULT_OK, Bundle().apply { putString("stream", "Canvas, RemoteViews, sizes and independent bitmaps passed; previews: $output\n") })
+            LadderRenderChecks.run(targetContext)
+            finish(Activity.RESULT_OK, Bundle().apply { putString("stream", "Both dashboards: Canvas, RemoteViews and sizes passed; previews in concentric-previews and ladder-previews\n") })
         } catch (failure: Throwable) {
             finish(Activity.RESULT_CANCELED, Bundle().apply { putString("stream", failure.stackTraceToString()) })
         }

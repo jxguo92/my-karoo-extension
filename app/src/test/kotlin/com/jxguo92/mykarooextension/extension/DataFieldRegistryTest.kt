@@ -14,8 +14,9 @@ class DataFieldRegistryTest {
             .let { nodes -> (0 until nodes.length).map { nodes.item(it).attributes.getNamedItem("typeId").nodeValue } }
 
         assertEquals(typeIds.size, typeIds.toSet().size)
+        assertEquals(xmlTypeIds.size, xmlTypeIds.toSet().size)
         assertEquals(typeIds.toSet(), xmlTypeIds.toSet())
-        assertEquals(listOf("rear-cog-teeth", "climber-field-1", "climber-field-2", "concentric-dashboard"), typeIds)
+        assertEquals(listOf("rear-cog-teeth", "climber-field-1", "climber-field-2", "concentric-dashboard", "ladder-full"), typeIds)
         assertEquals(typeIds, xmlTypeIds)
     }
 

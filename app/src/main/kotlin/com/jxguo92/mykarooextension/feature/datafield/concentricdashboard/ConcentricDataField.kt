@@ -81,8 +81,7 @@ class ConcentricDataField(
             val longitude = event.fieldValue(DataType.Field.LOC_LONGITUDE)
             location.value = if (latitude != null && longitude != null && latitude in -90.0..90.0 && longitude in -180.0..180.0)
                 GeoLocation(latitude, longitude) else null
-            // SDK 1.1.9 does not expose a LOC_SPEED constant; LOCATION uses this wire key (m/s).
-            state.update { it.onLocation(event.fieldValue(DataType.Field.LOC_BEARING), event.fieldValue("LOC_SPEED")?.times(3.6)) }
+            state.update { it.onLocationSample(event) }
         } }
     }
 

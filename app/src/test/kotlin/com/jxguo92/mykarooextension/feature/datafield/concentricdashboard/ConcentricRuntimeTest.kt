@@ -7,6 +7,21 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConcentricRuntimeTest {
+    @Test fun `unsupported size retries failed blank frame without reading or subscribing`() = runTest {
+        var attempts = 0
+        val frames = mutableListOf<ConcentricFrame>()
+        ConcentricRuntime(backgroundScope, false, false, { false }, { error("read") },
+            { error("subscribe") }, {
+                attempts++
+                if (attempts == 1) error("submit")
+                frames += it
+            }, {}).start()
+        advanceTimeBy(999); runCurrent(); assertEquals(1, attempts)
+        advanceTimeBy(1); runCurrent()
+        assertEquals(listOf(ConcentricFrame(null, false)), frames)
+        advanceTimeBy(2000); runCurrent(); assertEquals(2, attempts)
+    }
+
     @Test fun `preview has no subscriptions and still responds to theme without sensor changes`() = runTest {
         var subscriptions = 0
         var night = false

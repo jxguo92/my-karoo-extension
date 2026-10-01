@@ -33,12 +33,13 @@ class ConcentricRuntime(
             }
         }
         publish(ConcentricFrame(if (!fullPage) null else if (preview) ConcentricPreview.display else ConcentricDisplay(), night()))
-        if (!fullPage) return
-        if (!preview && scope.isActive) subscribe()
+        if (!fullPage && submitted != null) return
+        if (fullPage && !preview && scope.isActive) subscribe()
         scope.launch {
             while (isActive) {
                 delay(1_000)
-                publish(ConcentricFrame(if (preview) ConcentricPreview.display else latest(), night()))
+                publish(ConcentricFrame(if (!fullPage) null else if (preview) ConcentricPreview.display else latest(), night()))
+                if (!fullPage && submitted != null) break
             }
         }
     }

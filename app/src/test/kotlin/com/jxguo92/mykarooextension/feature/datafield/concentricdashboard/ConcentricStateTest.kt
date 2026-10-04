@@ -6,6 +6,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ConcentricStateTest {
+    @Test fun `wind retains calm only during a ride with a valid heading`() {
+        val active = ConcentricPreview.state
+        assertEquals(WindDisplay.Calm, active.display(WindDisplay.Calm).wind)
+        assertEquals(WindDisplay.Unavailable, active.display().wind)
+        assertEquals(WindDisplay.Unavailable, active.copy(heading = null).display(WindDisplay.Calm).wind)
+        assertEquals(WindDisplay.Unavailable, active.copy(heading = Double.NaN).display(WindDisplay.Calm).wind)
+        assertEquals(WindDisplay.Unavailable, active.onRide(false).display(WindDisplay.Calm).wind)
+        assertEquals(WindDisplay.Unavailable, active.onRide(false).onRide(true).display(WindDisplay.Calm).wind)
+        assertEquals(ConcentricPreview.display, active.onRide(true).display(ConcentricPreview.display.wind))
+    }
+
     @Test fun `idle clears readings and heading and ignores readings until resumed`() {
         val active = DashboardState().onValue(Metric.POWER, 245.0).onValue(Metric.SPEED, 5.0)
             .onLocation(315.0, null)

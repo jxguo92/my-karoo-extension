@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.widget.ImageView
 import com.jxguo92.mykarooextension.R
+import com.jxguo92.mykarooextension.core.dashboard.WindDisplay
 import java.io.File
 
 /** Runs with the repository's existing Canvas instrumentation runner. */
@@ -18,9 +19,15 @@ object LadderRenderChecks {
         ))
         val renderer = LadderRenderer(480 to 638)
         var reused: Bitmap? = null
-        for ((name, frame) in listOf("preview" to normal, "missing" to LadderFrame(), "long" to long)) {
+        for ((name, frame) in listOf("preview" to normal, "missing" to LadderFrame(),
+            "calm" to normal.copy(values = normal.values.copy(wind = WindDisplay.Calm)), "long" to long)) {
             val bitmap = renderer.bitmap(frame)
             check(bitmap.width == 480 && bitmap.height == 638)
+            if (name == "missing") {
+                val calm = LadderRenderer(480 to 638).bitmap(frame.copy(values = frame.values.copy(wind = WindDisplay.Calm)))
+                check((106..144).any { x -> (103..137).any { y -> bitmap.getPixel(x, y) != calm.getPixel(x, y) } })
+                check(bitmap.getPixel(355, 120) == calm.getPixel(355, 120))
+            }
             if (reused != null) check(bitmap === reused)
             reused = bitmap
             File(output, "$name.png").outputStream().use {

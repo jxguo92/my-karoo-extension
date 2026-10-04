@@ -48,7 +48,7 @@ data class DashboardState(
     fun onRide(active: Boolean): DashboardState = if (active) copy(acceptingReadings = true)
         else copy(acceptingReadings = false, readings = emptyMap(), gear = "--", heading = null, lastValidSpeed = null)
 
-    fun display(wind: WindIndicator? = null): DashboardDisplay {
+    fun display(wind: WindDisplay = WindDisplay.Unavailable): DashboardDisplay {
         fun integer(metric: Metric) = readings[metric]?.let { String.format(Locale.US, "%.0f", it) } ?: "--"
         fun decimal(metric: Metric) = readings[metric]?.let {
             String.format(Locale.US, if (metric == Metric.GRADE && it > 0) "+%.1f" else "%.1f", it)
@@ -63,7 +63,7 @@ data class DashboardState(
             cadenceFraction = DashboardCalculator.cadenceFraction(readings[Metric.CADENCE]),
             cadenceColor = readings[Metric.CADENCE]?.let(DashboardCalculator::cadenceColor) ?: 0,
             northAngle = heading?.let { DashboardCalculator.angle(-it) },
-            wind = if (acceptingReadings && heading != null) wind else null,
+            wind = if (acceptingReadings && DashboardCalculator.bearing(heading) != null) wind else WindDisplay.Unavailable,
         )
     }
 }
@@ -75,5 +75,5 @@ data class DashboardDisplay(
     val averagePower: String = "--", val normalizedPower: String = "--",
     val powerPosition: PowerPosition? = null, val heartZone: Int? = null,
     val cadenceFraction: Double? = null, val cadenceColor: Int = 0,
-    val northAngle: Int? = null, val wind: WindIndicator? = null,
+    val northAngle: Int? = null, val wind: WindDisplay = WindDisplay.Unavailable,
 )

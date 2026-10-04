@@ -2,6 +2,7 @@ package com.jxguo92.mykarooextension.core.ui
 
 import android.graphics.*
 import com.jxguo92.mykarooextension.core.dashboard.WindIndicator
+import com.jxguo92.mykarooextension.core.dashboard.WindDisplay
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -9,7 +10,23 @@ import kotlin.math.sin
 class DashboardDirections(private val canvas: Canvas) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    fun wind(x: Float, y: Float, wind: WindIndicator, color: Int) {
+    fun wind(x: Float, y: Float, wind: WindDisplay, colors: List<Int>, ink: Int) {
+        when (wind) {
+            WindDisplay.Calm -> Unit
+            WindDisplay.Unavailable -> {
+                paint.style = Paint.Style.FILL
+                paint.color = ink
+                paint.typeface = Typeface.create("sans-serif", Typeface.BOLD)
+                paint.textAlign = Paint.Align.CENTER
+                paint.textSize = 30f
+                val baseline = y - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
+                canvas.drawText("--", x, baseline, paint)
+            }
+            is WindIndicator -> arrow(x, y, wind, colors[wind.level])
+        }
+    }
+
+    private fun arrow(x: Float, y: Float, wind: WindIndicator, color: Int) {
         val angle = wind.angle - 90f
         val tail = point(x, y, 17f, angle + 180)
         val neck = point(x, y, 4f, angle)

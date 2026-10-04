@@ -39,15 +39,27 @@ class ConcentricCalculatorTest {
     }
 
     @Test fun `wind points toward rider for headwind and away for tailwind with four color levels`() {
-        assertEquals(180, DashboardCalculator.wind(90.0, 90.0, 4.0)!!.angle)
-        assertEquals(0, DashboardCalculator.wind(90.0, 270.0, 4.0)!!.angle)
+        assertEquals(WindIndicator(180, 1), DashboardCalculator.wind(90.0, 90.0, 4.0))
+        assertEquals(WindIndicator(0, 1), DashboardCalculator.wind(90.0, 270.0, 4.0))
         assertEquals(listOf(0, 0, 1, 1, 2, 2, 3),
-            listOf(.3, 3.399, 3.4, 5.499, 5.5, 7.999, 8.0).map { DashboardCalculator.wind(0.0, 0.0, it)!!.level })
-        assertNull(DashboardCalculator.wind(0.0, 0.0, .299))
-        assertNull(DashboardCalculator.wind(null, 0.0, 4.0))
-        assertNull(DashboardCalculator.wind(0.0, -1.0, 4.0))
-        assertNull(DashboardCalculator.wind(0.0, 0.0, Double.NaN))
+            listOf(.3, 3.399, 3.4, 5.499, 5.5, 7.999, 8.0).map { (DashboardCalculator.wind(0.0, 0.0, it) as WindIndicator).level })
+        assertEquals(WindDisplay.Calm, DashboardCalculator.wind(0.0, 0.0, .299))
+        assertEquals(WindDisplay.Unavailable, DashboardCalculator.wind(null, 0.0, 4.0))
+        assertEquals(WindDisplay.Unavailable, DashboardCalculator.wind(0.0, -1.0, 4.0))
+        assertEquals(WindDisplay.Unavailable, DashboardCalculator.wind(0.0, 0.0, Double.NaN))
         assertEquals(0, DashboardCalculator.angle(355.0))
         assertEquals(350, DashboardCalculator.angle(354.9))
+    }
+
+    @Test fun `calm requires valid heading direction and speed`() {
+        assertEquals(WindDisplay.Calm, DashboardCalculator.wind(0.0, 360.0, 0.0))
+        for (invalid in listOf(null, -1.0, 361.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertEquals(WindDisplay.Unavailable, DashboardCalculator.wind(invalid, 0.0, .1))
+            assertEquals(WindDisplay.Unavailable, DashboardCalculator.wind(0.0, invalid, .1))
+        }
+        for (invalid in listOf(null, -1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertEquals(WindDisplay.Unavailable, DashboardCalculator.wind(0.0, 0.0, invalid))
+        }
+        assertEquals(WindIndicator(180, 0), DashboardCalculator.wind(0.0, 0.0, .3))
     }
 }

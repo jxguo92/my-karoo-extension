@@ -62,7 +62,7 @@ private class LadderPainter(private val canvas: Canvas) {
             line(point(127f, angle), point(137f, angle), Color.parseColor("#c6d7d9"), 2f)
         }
         val directions = DashboardDirections(canvas)
-        d.wind?.let { directions.wind(125f, 120f, it, winds[it.level]) }
+        directions.wind(125f, 120f, d.wind, winds, ink)
         d.northAngle?.let { directions.compass(355f, 120f, it, Color.parseColor("#ef5b5b"), Color.parseColor("#7f929a"), ink) }
         text(if (d.grade == "--") "--" else "${d.grade}%", 240f, 132f, 30.25f, ink, 150f)
         text(d.gear, 240f, 230f, 30.25f, Color.parseColor("#9db9c0"), 180f)

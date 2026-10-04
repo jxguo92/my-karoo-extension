@@ -72,7 +72,7 @@ private class DashboardPainter(private val canvas: Canvas, private val theme: Da
         d.powerPosition?.let { position -> glow(true, theme.needle) {
             radial(146f, 205.5f, position.fraction.toFloat(), theme.needle, 3f)
         } }
-        d.wind?.let { DashboardDirections(canvas).wind(46f, 47f, it, theme.winds[it.level]) }
+        DashboardDirections(canvas).wind(46f, 47f, d.wind, theme.winds, theme.ink)
         d.northAngle?.let { DashboardDirections(canvas).compass(430f, 51f, it, theme.color("#ef5b5b", "#d93434"), theme.color("#7f929a", "#a3b0b6"), theme.color("#dfe9ea", "#2f3d44")) }
         text(d.gear, 240f, 177f, 30f, theme.gear, 190f, condensed)
         text(d.power, 240f, 283f, 96f, theme.power, 220f, condensed)

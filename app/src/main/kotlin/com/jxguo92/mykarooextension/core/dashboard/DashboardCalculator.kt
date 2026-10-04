@@ -4,7 +4,12 @@ import kotlin.math.floor
 
 /** Zero-based zone and equal-zone arc position. */
 data class PowerPosition(val zone: Int, val fraction: Double)
-data class WindIndicator(val angle: Int, val level: Int)
+sealed interface WindDisplay {
+    data object Unavailable : WindDisplay
+    data object Calm : WindDisplay
+}
+
+data class WindIndicator(val angle: Int, val level: Int) : WindDisplay
 
 object DashboardCalculator {
     fun power(watts: Double?, ftp: Double?): PowerPosition? {
@@ -29,8 +34,9 @@ object DashboardCalculator {
     fun heading(previous: Double?, bearing: Double?, speedKmh: Double?): Double? =
         if (nonNegative(speedKmh) != null && speedKmh!! >= 5 && bearing(bearing) != null) bearing else previous
 
-    fun wind(heading: Double?, from: Double?, speed: Double?): WindIndicator? {
-        if (bearing(heading) == null || bearing(from) == null || nonNegative(speed) == null || speed!! < .3) return null
+    fun wind(heading: Double?, from: Double?, speed: Double?): WindDisplay {
+        if (bearing(heading) == null || bearing(from) == null || nonNegative(speed) == null) return WindDisplay.Unavailable
+        if (speed!! < .3) return WindDisplay.Calm
         val level = when { speed < 3.4 -> 0; speed < 5.5 -> 1; speed < 8 -> 2; else -> 3 }
         return WindIndicator(angle(from!! + 180 - heading!!), level)
     }

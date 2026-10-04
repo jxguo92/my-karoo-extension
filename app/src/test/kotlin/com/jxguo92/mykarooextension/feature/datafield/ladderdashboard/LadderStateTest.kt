@@ -30,15 +30,18 @@ class LadderStateTest {
         assertEquals("-3.6", LadderPreview.state.onValue(Metric.GRADE, -3.6).ladderFrame().values.grade)
     }
 
-    @Test fun `idle clears directions until riding resumes while calm or expired weather only hides wind`() {
+    @Test fun `idle and expired weather mark wind unavailable while valid calm stays blank`() {
         val calm = LadderPreview.state.ladderFrame(DashboardCalculator.wind(315.0, 270.0, .29))
-        assertNull(calm.values.wind)
+        assertEquals(WindDisplay.Calm, calm.values.wind)
         assertEquals(50, calm.values.northAngle)
+        val expired = LadderPreview.state.ladderFrame(DashboardCalculator.wind(315.0, null, null))
+        assertEquals(WindDisplay.Unavailable, expired.values.wind)
+        assertEquals(50, expired.values.northAngle)
         val idle = LadderPreview.state.onRide(false).onValue(Metric.POWER, 245.0).onLocation(90.0, 30.0)
         assertEquals(LadderFrame(), idle.ladderFrame(LadderPreview.wind))
         val resumed = idle.onRide(true).onValue(Metric.POWER, 245.0).ladderFrame(LadderPreview.wind)
         assertEquals("245", resumed.values.power)
-        assertNull(resumed.values.wind)
+        assertEquals(WindDisplay.Unavailable, resumed.values.wind)
         assertNull(resumed.values.northAngle)
         assertEquals(LadderPreview.frame, LadderPreview.state.onRide(true).ladderFrame(LadderPreview.wind))
     }

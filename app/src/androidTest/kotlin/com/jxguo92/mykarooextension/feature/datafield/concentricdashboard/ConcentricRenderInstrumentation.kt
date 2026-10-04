@@ -23,11 +23,17 @@ class ConcentricRenderInstrumentation : Instrumentation() {
             val long = normal.copy(power = "123456789", speed = "12345.6", heartRate = "123456", gear = "123/456",
                 distance = "123456.7", grade = "+12345.6", averageSpeed = "12345.6", averageHr = "123456",
                 averagePower = "123456789", normalizedPower = "123456789")
-            for ((name, display) in listOf("preview" to normal, "missing" to DashboardDisplay(), "long" to long)) {
+            for ((name, display) in listOf("preview" to normal, "missing" to DashboardDisplay(),
+                "calm" to normal.copy(wind = WindDisplay.Calm), "long" to long)) {
                 for (night in listOf(false, true)) {
                     val frame = ConcentricFrame(display, night)
                     val bitmap = ConcentricView.bitmap(480 to 638, frame)
                     check(bitmap.width == 480 && bitmap.height == 638)
+                    if (name == "missing") {
+                        val calm = ConcentricView.bitmap(480 to 638, frame.copy(display = display.copy(wind = WindDisplay.Calm)))
+                        check((27..65).any { x -> (30..64).any { y -> bitmap.getPixel(x, y) != calm.getPixel(x, y) } })
+                        check(bitmap.getPixel(430, 51) == calm.getPixel(430, 51))
+                    }
                     File(output, "$name-${if (night) "night" else "day"}.png").outputStream().use {
                         check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
                     }

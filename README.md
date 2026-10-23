@@ -48,6 +48,10 @@ Windows：
 
 Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。
 
+真机连接、Android Studio 断点调试、Logcat 查看/保存，以及“安装 debug APK → 拔线室外使用 → 导出分析”的文件日志设计见
+[Karoo 真机调试与日志调研](docs/research/karoo-device-debugging-and-logs.md)；
+测试分层见 [测试与调试说明](docs/research/karoo-extension-testing.md)。
+
 ## Data Field
 
 字段契约、映射和真机检查项见 [Data Fields](docs/data-fields.md)。新增 Data Field 时，
